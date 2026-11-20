@@ -46,11 +46,6 @@ async function loadConfig() {
   if (process.env.BART_API_KEY) merged.bartApiKey = process.env.BART_API_KEY;
   if (process.env.API_511_KEY) merged.api511Key = process.env.API_511_KEY;
 
-  // Never log secrets
-  const safeConfig = { ...merged };
-  if (safeConfig.bartApiKey) safeConfig.bartApiKey = "***";
-  if (safeConfig.api511Key) safeConfig.api511Key = "***";
-
   return merged;
 }
 
