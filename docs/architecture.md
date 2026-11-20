@@ -66,11 +66,21 @@ Reference for patterns (read-only): the owner's earlier `nguyenchrisv/dash` repo
 - **Accessibility:** each row also has a plain-text accessible label; the animation is decorative; WCAG AA contrast.
 
 ## 4. Configuration
+
+**Christopher's stops (confirmed against 511 on 2026-11-20):**
+| Mode | Stop | Code | Notes |
+|---|---|---|---|
+| BART | Fruitvale | `FTVL` | BART API station abbreviation |
+| Ferry | Harbor Bay Ferry Terminal | `7206` | 511 operator `SB` |
+| AC Transit **O** westbound | High St & Encinal Av | `57727` | toward Salesforce Transit Center (SF) |
+| AC Transit **O** eastbound | High St & Encinal Av | `57780` | toward Fruitvale BART |
+
+With 3 stops on 511 (1 ferry + 2 bus), the ≤55/hour budget gives each stop about 18 refreshes/hour (~every 3.3 min). `bus.lines` filters StopMonitoring results to line `O` (other lines that use those stops are hidden).
 `config.json` (committed, no secrets):
 ```json
-{ "bart": { "stations": ["16TH"] },
-  "ferry": { "operator": "SB", "stops": [] },
-  "bus": { "operator": "AC", "stops": [] },
+{ "bart": { "stations": ["FTVL"] },
+  "ferry": { "operator": "SB", "stops": ["7206"] },
+  "bus": { "operator": "AC", "stops": ["57727", "57780"], "lines": ["O"] },
   "budget511PerHour": 55 }
 ```
 Secrets come only from the environment: `BART_API_KEY`, `API_511_KEY`.

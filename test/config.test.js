@@ -2,13 +2,14 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { writeFile, unlink } from "node:fs/promises";
+import { writeFile, unlink, readFile } from "node:fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PROJECT_ROOT = join(__dirname, "..");
 
 const originalEnv = { ...process.env };
+const fileConfig = JSON.parse(await readFile(join(PROJECT_ROOT, "config.json"), "utf-8"));
 
 describe("Config loading", () => {
   before(() => {
@@ -28,7 +29,7 @@ describe("Config loading", () => {
 
     const config = await getConfig();
     assert.ok(config.bart);
-    assert.deepEqual(config.bart.stations, ["16TH"]);
+    assert.deepEqual(config.bart.stations, fileConfig.bart.stations);
     assert.ok(config.ferry);
     assert.ok(config.bus);
     assert.equal(config.budget511PerHour, 55);
@@ -88,7 +89,7 @@ describe("Config loading", () => {
     const config = await getConfig();
     assert.equal(config.bartApiKey, "only-bart");
     assert.equal(config.api511Key, undefined);
-    assert.deepEqual(config.bart.stations, ["16TH"]);
+    assert.deepEqual(config.bart.stations, fileConfig.bart.stations);
     assert.equal(config.budget511PerHour, 55);
 
     delete process.env.BART_API_KEY;
