@@ -1,6 +1,6 @@
 // BART poller: fetches BART data on a schedule, caches results, handles failures
 
-import { getConfig } from "./config.js";
+import { getConfig as defaultGetConfig } from "./config.js";
 import { normalizeEtd, normalizeAdvisories, getStationName } from "./adapters/bart.js";
 
 const BART_ETD_URL = "https://api.bart.gov/api/etd.aspx";
@@ -31,6 +31,11 @@ function redactKey(url) {
   return url.replace(/key=[^&]+/, "key=***");
 }
 
+function scrubApiKey(message, apiKey) {
+  if (!apiKey) return message;
+  return message.split(apiKey).join("***");
+}
+
 function createInitialBoard(stationAbbr, stationName) {
   return {
     mode: "bart",
@@ -57,6 +62,7 @@ export function createPoller(options = {}) {
     setTimeoutImpl = setTimeout,
     clearTimeoutImpl = clearTimeout,
     nowImpl = () => new Date(),
+    getConfig = defaultGetConfig,
   } = options;
 
   let cache = new Map(); // stationAbbr -> board
@@ -79,8 +85,9 @@ export function createPoller(options = {}) {
       const json = JSON.parse(text);
       return json;
     } catch (err) {
-      // Redact API key from error message
-      const message = err.message.replace(url, redactKey(url));
+      // Redact API key from error message (both URL and key value)
+      let message = err.message.replace(url, redactKey(url));
+      message = scrubApiKey(message, apiKey);
       throw new Error(message);
     }
   }
@@ -99,7 +106,8 @@ export function createPoller(options = {}) {
       const json = JSON.parse(text);
       return json;
     } catch (err) {
-      const message = err.message.replace(url, redactKey(url));
+      let message = err.message.replace(url, redactKey(url));
+      message = scrubApiKey(message, apiKey);
       throw new Error(message);
     }
   }

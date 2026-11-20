@@ -14,75 +14,75 @@ async function loadFixture(name) {
   return JSON.parse(content);
 }
 
+function createTestConfig() {
+  return async () => ({
+    bartApiKey: "TEST_KEY_12345",
+    bart: { stations: ["16TH"] },
+  });
+}
+
+function createMockFetch(fixtures) {
+  return async (url) => {
+    if (url.includes("/api/etd.aspx")) {
+      return {
+        ok: true,
+        text: async () => JSON.stringify(fixtures.etd),
+      };
+    }
+    if (url.includes("/api/bsa.aspx")) {
+      return {
+        ok: true,
+        text: async () => JSON.stringify(fixtures.bsa),
+      };
+    }
+    return { ok: false, status: 404 };
+  };
+}
+
+function createFakeTimers() {
+  const timers = [];
+  let currentTime = 0;
+
+  const setTimeoutImpl = (fn, delay) => {
+    const id = { fn, delay, scheduledAt: currentTime };
+    timers.push(id);
+    return id;
+  };
+
+  const clearTimeoutImpl = (id) => {
+    const idx = timers.indexOf(id);
+    if (idx >= 0) timers.splice(idx, 1);
+  };
+
+  const advance = async (ms) => {
+    currentTime += ms;
+    // Find and execute due timers
+    const due = timers.filter((t) => currentTime - t.scheduledAt >= t.delay);
+    for (const timer of due) {
+      const idx = timers.indexOf(timer);
+      if (idx >= 0) timers.splice(idx, 1);
+      const result = timer.fn();
+      if (result && typeof result.then === "function") {
+        await result;
+      }
+    }
+  };
+
+  return { setTimeoutImpl, clearTimeoutImpl, advance, getTimers: () => timers };
+}
+
 describe("BART poller", () => {
   let poller;
   let mockFetch;
   let mockTimers;
-  let clock;
 
-  before(async () => {
+  before(() => {
     resetPoller();
-    process.env.BART_API_KEY = "TEST_KEY_12345";
-    // Reset config cache so new env var is picked up
-    const { resetConfigCache } = await import("../src/config.js");
-    resetConfigCache();
   });
 
   after(() => {
     resetPoller();
   });
-
-  function createMockFetch(fixtures) {
-    let callCount = 0;
-    return async (url) => {
-      callCount++;
-      if (url.includes("/api/etd.aspx")) {
-        return {
-          ok: true,
-          text: async () => JSON.stringify(fixtures.etd),
-        };
-      }
-      if (url.includes("/api/bsa.aspx")) {
-        return {
-          ok: true,
-          text: async () => JSON.stringify(fixtures.bsa),
-        };
-      }
-      return { ok: false, status: 404 };
-    };
-  }
-
-  function createFakeTimers() {
-    const timers = [];
-    let currentTime = 0;
-
-    const setTimeoutImpl = (fn, delay) => {
-      const id = { fn, delay, scheduledAt: currentTime };
-      timers.push(id);
-      return id;
-    };
-
-    const clearTimeoutImpl = (id) => {
-      const idx = timers.indexOf(id);
-      if (idx >= 0) timers.splice(idx, 1);
-    };
-
-    const advance = async (ms) => {
-      currentTime += ms;
-      // Find and execute due timers
-      const due = timers.filter((t) => currentTime - t.scheduledAt >= t.delay);
-      for (const timer of due) {
-        const idx = timers.indexOf(timer);
-        if (idx >= 0) timers.splice(idx, 1);
-        const result = timer.fn();
-        if (result && typeof result.then === "function") {
-          await result;
-        }
-      }
-    };
-
-    return { setTimeoutImpl, clearTimeoutImpl, advance, getTimers: () => timers };
-  }
 
   test("poller fetches BART data and caches normalized board", async () => {
     const etdFixture = await loadFixture("bart-normal.json");
@@ -96,6 +96,7 @@ describe("BART poller", () => {
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl: () => new Date("2026-11-20T10:00:00Z"),
+      getConfig: createTestConfig(),
     });
 
     await poller.start();
@@ -151,6 +152,7 @@ describe("BART poller", () => {
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl: () => new Date("2026-11-20T10:00:00Z"),
+      getConfig: createTestConfig(),
     });
 
     await poller.start();
@@ -186,6 +188,7 @@ describe("BART poller", () => {
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl: () => new Date("2026-11-20T10:00:00Z"),
+      getConfig: createTestConfig(),
     });
 
     await poller.start();
@@ -212,6 +215,7 @@ describe("BART poller", () => {
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl: () => new Date("2026-11-20T10:00:00Z"),
+      getConfig: createTestConfig(),
     });
 
     await poller.start();
@@ -236,21 +240,19 @@ describe("BART poller", () => {
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl: () => new Date("2026-11-20T10:00:00Z"),
+      getConfig: async () => ({
+        bartApiKey: "TEST_KEY_12345",
+        bart: { stations: ["16TH", "12TH"] },
+      }),
     });
-
-    // Override config loading for this test by using a custom poller start
-    // We'll test with a custom config by mocking getConfig
-    const { getConfig } = await import("../src/config.js");
-    const originalGetConfig = getConfig;
-    // Note: we can't easily mock getConfig since it's cached
-    // Instead, test that poller uses the stations from config
 
     await poller.start();
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const cache = poller.getCache();
-    // Should have at least the default station
+    // Should have both stations
     assert.ok(cache.has("16TH"));
+    assert.ok(cache.has("12TH"));
   });
 
   test("poller stop clears all timers", async () => {
@@ -267,6 +269,7 @@ describe("BART poller", () => {
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl: () => new Date("2026-11-20T10:00:00Z"),
+      getConfig: createTestConfig(),
     });
 
     await poller.start();
@@ -283,7 +286,7 @@ describe("BART poller", () => {
     resetPoller();
 
     const failingFetch = async (url) => {
-      if (url.includes("key=TEST_KEY_12345")) {
+      if (url.includes("TEST_KEY_12345")) {
         throw new Error(`Failed to fetch ${url}`);
       }
       return { ok: true, text: async () => JSON.stringify(await loadFixture("bart-normal.json")) };
@@ -296,6 +299,7 @@ describe("BART poller", () => {
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl: () => new Date("2026-11-20T10:00:00Z"),
+      getConfig: createTestConfig(),
     });
 
     await poller.start();
