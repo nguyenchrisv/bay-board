@@ -1,0 +1,43 @@
+{
+  "root": {
+    "uri": {
+      "version": "0.1",
+      "link": "http://api.bart.gov/api/etd.aspx?cmd=etd&orig=16TH&key=MW9S-E7SL-26DU-VV8V&json=y"
+    },
+    "date": "11/20/2026",
+    "time": "10:00:00 AM PDT",
+    "station": [
+      {
+        "name": "16th St Mission",
+        "abbr": "16TH",
+        "etd": [
+          {
+            "destination": "Antioch",
+            "abbreviation": "ANTC",
+            "limited": "0",
+            "estimate": [
+              {
+                "minutes": "Leaving",
+                "platform": "2",
+                "direction": "North",
+                "length": "10",
+                "color": "FFFF33",
+                "hexcolor": "#FFFF33",
+                "bikeflag": "1"
+              },
+              {
+                "minutes": "15",
+                "platform": "2",
+                "direction": "North",
+                "length": "10",
+                "color": "FFFF33",
+                "hexcolor": "#FFFF33",
+                "bikeflag": "1"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
