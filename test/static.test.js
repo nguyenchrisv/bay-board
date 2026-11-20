@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { connect } from "node:net";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -68,6 +69,42 @@ describe("Static file serving", () => {
       assert.equal(res.status, 404);
       const text = await res.text();
       assert.equal(text, "Not Found");
+    });
+  });
+
+  test("Very long path (ENAMETOOLONG) returns 404", async () => {
+    await withServer(async (baseUrl) => {
+      const longPath = "/" + "a".repeat(300);
+      const res = await fetch(`${baseUrl}${longPath}`);
+      assert.equal(res.status, 404);
+      const text = await res.text();
+      assert.equal(text, "Not Found");
+    });
+  });
+
+  test("Server survives malformed request-target and health still works", async () => {
+    await withServer(async (baseUrl) => {
+      const port = new URL(baseUrl).port;
+      // Send raw HTTP with malformed request-target (absolute-form URI)
+      const socket = connect({ port: Number(port) });
+      await new Promise((resolve) => socket.once("connect", resolve));
+
+      const malformedRequest = "GET http://example.com/ HTTP/1.1\r\nHost: localhost\r\n\r\n";
+      socket.write(malformedRequest);
+
+      // Read response (should be 400 Bad Request)
+      const response = await new Promise((resolve) => {
+        let data = "";
+        socket.on("data", (chunk) => { data += chunk; });
+        socket.on("end", () => resolve(data));
+        socket.on("error", () => resolve(""));
+      });
+
+      // Health should still work after the malformed request
+      const healthRes = await fetch(`${baseUrl}/api/health`);
+      assert.equal(healthRes.status, 200);
+      const body = await healthRes.json();
+      assert.equal(body.ok, true);
     });
   });
 });
