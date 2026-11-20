@@ -17,7 +17,7 @@ async function loadFixture(name) {
 function createTestConfig() {
   return async () => ({
     bartApiKey: "TEST_KEY_12345",
-    bart: { stations: ["16TH"] },
+    bart: { stations: ["FTVL"] },
   });
 }
 
@@ -105,21 +105,20 @@ describe("BART poller", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const cache = poller.getCache();
-    assert.ok(cache.has("16TH"));
+    assert.ok(cache.has("FTVL"));
 
-    const board = cache.get("16TH");
+    const board = cache.get("FTVL");
     assert.equal(board.mode, "bart");
-    assert.equal(board.stop, "16th St Mission");
+    assert.equal(board.stop, "Fruitvale");
     assert.equal(board.stale, false);
     assert.equal(board.error, null);
-    assert.equal(board.departures.length, 5);
+    assert.equal(board.departures.length, 12);
     assert.ok(board.updatedAt);
 
     // Check advisories
     const advisories = poller.getAdvisories();
-    assert.equal(advisories.length, 2);
-    assert.ok(advisories[0].includes("Elevator"));
-    assert.ok(advisories[1].includes("Yellow Line"));
+    assert.equal(advisories.length, 1);
+    assert.equal(advisories[0], "No advisories issued.");
   });
 
   test("poller marks stale and keeps error on fetch failure", async () => {
@@ -160,7 +159,7 @@ describe("BART poller", () => {
 
     // First fetch fails
     let cache = poller.getCache();
-    let board = cache.get("16TH");
+    let board = cache.get("FTVL");
     assert.equal(board.stale, true);
     assert.ok(board.error.includes("Network error"));
 
@@ -168,10 +167,10 @@ describe("BART poller", () => {
     await mockTimers.advance(30_000);
 
     cache = poller.getCache();
-    board = cache.get("16TH");
+    board = cache.get("FTVL");
     assert.equal(board.stale, false);
     assert.equal(board.error, null);
-    assert.equal(board.departures.length, 5);
+    assert.equal(board.departures.length, 12);
   });
 
   test("poller handles empty etd response", async () => {
@@ -195,7 +194,7 @@ describe("BART poller", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const cache = poller.getCache();
-    const board = cache.get("16TH");
+    const board = cache.get("FTVL");
     assert.equal(board.stale, false);
     assert.equal(board.error, null);
     assert.equal(board.departures.length, 0);
@@ -222,7 +221,7 @@ describe("BART poller", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const cache = poller.getCache();
-    const board = cache.get("16TH");
+    const board = cache.get("FTVL");
     assert.equal(board.departures[0].minutes, 0);
   });
 
@@ -242,7 +241,7 @@ describe("BART poller", () => {
       nowImpl: () => new Date("2026-11-20T10:00:00Z"),
       getConfig: async () => ({
         bartApiKey: "TEST_KEY_12345",
-        bart: { stations: ["16TH", "12TH"] },
+        bart: { stations: ["FTVL", "12TH"] },
       }),
     });
 
@@ -251,7 +250,7 @@ describe("BART poller", () => {
 
     const cache = poller.getCache();
     // Should have both stations
-    assert.ok(cache.has("16TH"));
+    assert.ok(cache.has("FTVL"));
     assert.ok(cache.has("12TH"));
   });
 
@@ -306,7 +305,7 @@ describe("BART poller", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     const cache = poller.getCache();
-    const board = cache.get("16TH");
+    const board = cache.get("FTVL");
     assert.equal(board.stale, true);
     assert.ok(board.error.includes("key=***"));
     assert.ok(!board.error.includes("TEST_KEY_12345"));

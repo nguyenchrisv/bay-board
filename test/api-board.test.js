@@ -19,7 +19,7 @@ async function loadFixture(name) {
 function createTestConfig() {
   return async () => ({
     bartApiKey: "TEST_KEY_12345",
-    bart: { stations: ["16TH"] },
+    bart: { stations: ["FTVL"] },
   });
 }
 
@@ -133,13 +133,13 @@ describe("API /api/board endpoints", () => {
     const body = await res.json();
     assert.ok(body.bart);
     assert.equal(body.bart.mode, "bart");
-    assert.equal(body.bart.stop, "16th St Mission");
+    assert.equal(body.bart.stop, "Fruitvale");
     assert.ok(body.ferry);
     assert.equal(body.ferry.mode, "ferry");
-    assert.equal(body.ferry.stop, "Not configured");
+    assert.equal(body.ferry.unconfigured, true);
     assert.ok(body.bus);
     assert.equal(body.bus.mode, "bus");
-    assert.equal(body.bus.stop, "Not configured");
+    assert.equal(body.bus.unconfigured, true);
   });
 
   test("GET /api/board/bart returns BART board", async () => {
@@ -150,7 +150,7 @@ describe("API /api/board endpoints", () => {
     const body = await res.json();
     assert.ok(body.bart);
     assert.equal(body.bart.mode, "bart");
-    assert.equal(body.bart.stop, "16th St Mission");
+    assert.equal(body.bart.stop, "Fruitvale");
     assert.ok(Array.isArray(body.bart.departures));
   });
 
