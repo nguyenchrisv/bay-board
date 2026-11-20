@@ -1,14 +1,24 @@
 {
   "bart": {
-    "stations": ["16TH"]
+    "stations": [
+      "FTVL"
+    ]
   },
   "ferry": {
-    "operator": "TBD",
-    "stops": []
+    "operator": "SB",
+    "stops": [
+      "7206"
+    ]
   },
   "bus": {
-    "operator": "TBD",
-    "stops": []
+    "operator": "AC",
+    "stops": [
+      "57727",
+      "57780"
+    ],
+    "lines": [
+      "O"
+    ]
   },
   "budget511PerHour": 55
 }
