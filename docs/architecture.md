@@ -17,7 +17,8 @@ Reference for patterns (read-only): the owner's earlier `nguyenchrisv/dash` repo
 - The server keeps a request budget of **≤ 55/hour** and spreads it across configured stops.
 - Browsers never trigger 511 calls; they read the server's cache.
 - 511 JSON may start with a UTF-8 BOM. Strip it before `JSON.parse`.
-- Operator ids (SF Bay Ferry, AC Transit) and stop codes are looked up once with a setup script (Task 4) and stored in `config.json`.
+- **511 responses can arrive gzip-compressed even when the client didn't ask for it** (seen 2026-11-20 on `/transit/operators`; the body started with `1f 8b`). Node's `fetch` decompresses automatically when `Content-Encoding: gzip` is set; still check for the gzip magic bytes and use `node:zlib` `gunzipSync` as a fallback. Recorded fixtures should be stored decompressed.
+- **Operator ids (confirmed 2026-11-20 via `/transit/operators`):** San Francisco Bay Ferry = **`SB`**, AC Transit = **`AC`** (both have real-time data). BART is also on 511 as `BA`, but we use BART's own API to keep the 511 budget free. Stop codes are looked up once with a setup script (Task 4) and stored in `config.json`.
 
 ## 2. Server design
 - Node ≥22, standard library only: `node:http`, global `fetch`, `node:fs/promises`, `node:path`.
@@ -68,8 +69,8 @@ Reference for patterns (read-only): the owner's earlier `nguyenchrisv/dash` repo
 `config.json` (committed, no secrets):
 ```json
 { "bart": { "stations": ["16TH"] },
-  "ferry": { "operator": "TBD", "stops": [] },
-  "bus": { "operator": "TBD", "stops": [] },
+  "ferry": { "operator": "SB", "stops": [] },
+  "bus": { "operator": "AC", "stops": [] },
   "budget511PerHour": 55 }
 ```
 Secrets come only from the environment: `BART_API_KEY`, `API_511_KEY`.
