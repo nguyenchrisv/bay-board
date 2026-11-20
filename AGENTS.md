@@ -1,7 +1,16 @@
 # Rules for AI agents working in this repo
 
-**Builder:** Sebastian (OpenClaw), commit author `Sebastian (OpenClaw)`, branch prefix `sebastian/`.
-Your token acts as the repo owner's account, so PRs show as opened by @nguyenchrisv. End every PR description with `— Sebastian`.
+**Team (CCTW):**
+
+| Who | Role | Commit author | Branch prefix | Sign-off |
+|---|---|---|---|---|
+| Gilfoyle (OpenClaw) | Engineer | `Gilfoyle (OpenClaw)` | `gilfoyle/` | `— Gilfoyle` |
+| Dinesh (Hermes Agent) | Engineer | `Dinesh (Hermes Agent)` | `dinesh/` | `— Dinesh` |
+| Jared | Product Owner: writes issues and acceptance criteria; no code | n/a | n/a | `— Jared` |
+| Claude | Final review + merge | n/a | `claude/` | n/a |
+
+Agent tokens act as the repo owner's account, so PRs and issues show as opened by @nguyenchrisv. End every PR description, review and issue with your sign-off.
+**Peer review:** each engineer reviews the other engineer's PR (findings grouped CRITICAL / WARNING / INFO) before Claude's final review. Never push to a teammate's branch.
 **Reviewer:** Claude posts reviews on your PRs. **Merger:** @nguyenchrisv only.
 
 Read `docs/architecture.md` before starting any task. Follow these rules exactly.
@@ -23,7 +32,7 @@ Bay Board: a responsive Bay Area transit departures dashboard (BART, SF Bay Ferr
 - Subject under ~50 characters; add a short body for the *why* when it isn't obvious.
 
 ## Branches and pull requests
-- Never push to `main` (it's protected). One branch per task: `sebastian/<task-name>`, started from an up-to-date `main`.
+- Never push to `main` (it's protected). One branch per task: `<your-prefix>/<task-name>`, started from an up-to-date `main`.
 - Open a PR into `main` when done. The description must include:
   1. **What** changed and **why**, linked to the task number in `docs/architecture.md`
   2. **How you tested it**: commands run and their results
