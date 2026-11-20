@@ -1,0 +1,24 @@
+{
+  "root": {
+    "uri": {
+      "version": "0.1",
+      "link": "http://api.bart.gov/api/bsa.aspx?cmd=bsa&key=MW9S-E7SL-26DU-VV8V&json=y"
+    },
+    "date": "11/20/2026",
+    "time": "10:00:00 AM PDT",
+    "bsa": [
+      {
+        "type": "Information",
+        "description": "Elevator at 16th St Mission station is out of service.",
+        "posted": "11/20/2026",
+        "expires": "11/27/2026"
+      },
+      {
+        "type": "Delay",
+        "description": "10-15 minute delays on Yellow Line due to equipment problem.",
+        "posted": "11/20/2026",
+        "expires": "11/20/2026"
+      }
+    ]
+  }
+}
