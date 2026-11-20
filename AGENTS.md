@@ -1,6 +1,6 @@
 # Rules for AI agents working in this repo
 
-**Team (CCTW):**
+**Team (Onyx):**
 
 | Who | Role | Commit author | Branch prefix | Sign-off |
 |---|---|---|---|---|
