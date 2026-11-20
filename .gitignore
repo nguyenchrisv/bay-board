@@ -1,0 +1,28 @@
+# Dependencies (there shouldn't be any)
+node_modules/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials.json
+service-account*.json
+.npmrc
+
+# AI tool personal configs
+.claude/settings.local.json
+.cursor/
+.aider*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+
+# Logs / coverage
+*.log
+coverage/

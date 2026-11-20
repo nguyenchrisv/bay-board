@@ -1,0 +1,14 @@
+{
+  "name": "bay-board",
+  "version": "0.0.1",
+  "description": "Bay Area transit departures on a 1970s split-flap board",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED"
+}
