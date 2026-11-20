@@ -81,21 +81,21 @@ export async function handleRequest(req, res) {
         for (const [station, board] of cache) {
           boards.bart = board; // Only BART for now
         }
-        // Add empty ferry and bus for consistent shape
+        // Add ferry and bus as unconfigured (no adapter implemented yet)
         boards.ferry = {
           mode: "ferry",
           stop: "Not configured",
           updatedAt: null,
-          stale: true,
-          error: "Not configured",
+          stale: false,
+          unconfigured: true,
           departures: [],
         };
         boards.bus = {
           mode: "bus",
           stop: "Not configured",
           updatedAt: null,
-          stale: true,
-          error: "Not configured",
+          stale: false,
+          unconfigured: true,
           departures: [],
         };
       } else {
