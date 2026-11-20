@@ -8,9 +8,6 @@ import {
   diffStrings,
   createSplitFlapCell,
   createLineChipCell,
-  createDestinationCell,
-  createMinutesCell,
-  createPlatformCell,
 } from "./split-flap.js";
 
 const POLL_INTERVAL_MS = 30_000;
@@ -32,17 +29,25 @@ const previousDepartures = {
   bus: [],
 };
 
+// Track configured modes to avoid stale badge on unconfigured
+const configuredModes = new Set(Object.keys(boards).filter((mode) => {
+  const board = boards[mode];
+  return board && !board.dataset.unconfigured;
+}));
+
 function updateClock() {
   const now = new Date();
   clockEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function showMode(mode) {
+  // Update board visibility (for mobile <600px)
   for (const [key, board] of Object.entries(boards)) {
     if (board) {
-      board.hidden = key !== mode;
+      board.dataset.active = key === mode;
     }
   }
+  // Update tab aria-selected
   for (const tab of tabs) {
     tab.setAttribute("aria-selected", tab.dataset.mode === mode);
   }
@@ -64,7 +69,7 @@ function renderDepartures(boardEl, data, mode) {
   if (!tbody) return;
 
   if (!data || !data.departures?.length) {
-    tbody.innerHTML = ""; // Clear existing
+    tbody.innerHTML = "";
     const tr = document.createElement("tr");
     tr.className = "empty-row";
     const td = document.createElement("td");
@@ -85,10 +90,15 @@ function renderDepartures(boardEl, data, mode) {
     const oldDep = oldDepartures[i] || {};
 
     const tr = document.createElement("tr");
-    tr.setAttribute("data-accessible-label", getAccessibleLabel(dep));
 
-    // Line chip cell
-    tr.appendChild(createLineChipCell(dep));
+    // Line chip cell with visually hidden accessible label
+    const lineChipCell = createLineChipCell(dep);
+    const accessibleLabel = getAccessibleLabel(dep);
+    const srSpan = document.createElement("span");
+    srSpan.className = "visually-hidden";
+    srSpan.textContent = accessibleLabel;
+    lineChipCell.prepend(srSpan);
+    tr.appendChild(lineChipCell);
 
     // Destination - use split-flap if changed
     const oldDest = oldDep.destination || "";
@@ -136,11 +146,33 @@ function updateBoard(boardEl, data, mode) {
   }
 
   if (data.stop) stopNameEl.textContent = data.stop;
+
+  // Handle unconfigured boards (ferry/bus) - show COMING SOON, no stale badge
+  if (data.unconfigured) {
+    stopNameEl.textContent = data.stop || (mode === "ferry" ? "FERRY" : "BUS");
+    const comingSoon = mode === "ferry" ? "FERRY \u00B7 COMING SOON" : "BUS \u00B7 COMING SOON";
+    const tbody = boardEl.querySelector(".departures tbody");
+    if (tbody) {
+      tbody.innerHTML = "";
+      const tr = document.createElement("tr");
+      tr.className = "empty-row";
+      const td = document.createElement("td");
+      td.setAttribute("colspan", "4");
+      td.textContent = comingSoon;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+    // No stale badge for unconfigured
+    staleBadge.hidden = true;
+    updatedEl.textContent = "";
+    return;
+  }
+
   if (data.updatedAt) {
     const dt = new Date(data.updatedAt);
     updatedEl.textContent = `UPDATED ${dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 
-    // Check if data is stale (older than 2 minutes)
+    // Check if data is stale (older than 2 minutes) - only for configured modes
     const isStale = data.stale || Date.now() - dt.getTime() > STALE_THRESHOLD_MS;
     staleBadge.hidden = !isStale;
   } else {
@@ -166,11 +198,13 @@ for (const tab of tabs) {
   tab.addEventListener("click", () => showMode(tab.dataset.mode));
 }
 
-// Initialize
+// Initialize: default to BART
+showMode("bart");
+
 updateClock();
 setInterval(updateClock, 1000);
 poll();
 setInterval(poll, POLL_INTERVAL_MS);
 
 // Expose for testing
-window.__bayBoard = { poll, updateBoard, renderDepartures };
+window.__bayBoard = { poll, updateBoard, renderDepartures, showMode };
