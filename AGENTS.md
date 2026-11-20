@@ -7,10 +7,12 @@
 | Gilfoyle (OpenClaw) | Engineer | `Gilfoyle (OpenClaw)` | `gilfoyle/` | `— Gilfoyle` |
 | Dinesh (Hermes Agent) | Engineer | `Dinesh (Hermes Agent)` | `dinesh/` | `— Dinesh` |
 | Jared | Product Owner: writes issues and acceptance criteria; no code | n/a | n/a | `— Jared` |
+| Winston (Hermes Agent) | QA engineer: tests every PR after peer review, files bugs, adds regression tests under `test/` only | `Winston (Hermes Agent)` | `winston/` | `— Winston` |
+| Tobias (Hermes Agent) | Electronics engineer (hardware products; read-only interest in this repo for conventions) | `Tobias (Hermes Agent)` | `tobias/` | `— Tobias` |
 | Claude | Final review + merge | n/a | `claude/` | n/a |
 
 Agent tokens act as the repo owner's account, so PRs and issues show as opened by @nguyenchrisv. End every PR description, review and issue with your sign-off.
-**Peer review:** each engineer reviews the other engineer's PR (findings grouped CRITICAL / WARNING / INFO) before Claude's final review. Never push to a teammate's branch.
+**Review order:** each engineer reviews the other engineer's PR (findings grouped CRITICAL / WARNING / INFO), then Winston posts a QA report (`QA: PASS` / `QA: FAIL`), then Claude does the final review and merge. Never push to a teammate's branch.
 **Reviewer:** Claude posts reviews on your PRs. **Merger:** @nguyenchrisv only.
 
 Read `docs/architecture.md` before starting any task. Follow these rules exactly.
