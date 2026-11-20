@@ -27,7 +27,7 @@ Bay Board: a responsive Bay Area transit departures dashboard (BART, SF Bay Ferr
 - Open a PR into `main` when done. The description must include:
   1. **What** changed and **why**, linked to the task number in `docs/architecture.md`
   2. **How you tested it**: commands run and their results
-  3. **Self-review**: findings grouped CRITICAL / WARNING / INFO, ending "X critical, Y warnings, Z info". Fix all CRITICAL before opening.
+  3. **Self-review**: findings grouped CRITICAL / WARNING / INFO, ending "X critical, Y warnings, Z info". Fix all CRITICAL before opening. **A violation of any rule in this file is always CRITICAL.**
   4. **Uncertainties**: anything unclear or unfinished
 - Keep PRs small: one task per PR.
 
@@ -37,6 +37,8 @@ Bay Board: a responsive Bay Area transit departures dashboard (BART, SF Bay Ferr
 - **Browser safety:** never put API data into `innerHTML`. Build DOM with `createElement` + `textContent`.
 - **Static files:** resolve paths and verify they stay inside `public/` (no path traversal).
 - **External APIs:** call them only from the server poller, never because a browser requested something. Respect the 511 budget (≤ 55 requests/hour total).
+- **Fixtures must be recorded from the real API, never invented.** Save a real response (with keys removed) under `test/fixtures/`. If a test disagrees with a recorded fixture, fix the test, not the fixture.
+- **Report only test results you just observed.** Before reporting counts, push, then run `npm test` on a clean checkout of the pushed branch and paste the summary lines.
 - Style: ES modules, 2-space indentation, double quotes.
 
 ## Out of scope (don't modify unless the task explicitly asks)
