@@ -33,6 +33,8 @@ function isSafePath(requestedPath, baseDir) {
   return !relativePath.startsWith("..") && !relativePath.startsWith(sep);
 }
 
+const NOT_FOUND_CODES = new Set(["ENOENT", "ENOTDIR", "ENAMETOOLONG", "EINVAL"]);
+
 export async function serveStatic(req, res, urlPath) {
   let filePath = urlPath;
   if (filePath === "/" || filePath === "") {
@@ -68,11 +70,14 @@ export async function serveStatic(req, res, urlPath) {
     res.end(content);
     return true;
   } catch (err) {
-    if (err.code === "ENOENT") {
+    if (NOT_FOUND_CODES.has(err.code)) {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
       res.end("Not Found");
       return true;
     }
-    throw err;
+    // Any other fs error -> 500
+    res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Internal Server Error");
+    return true;
   }
 }

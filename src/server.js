@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { serveStatic } from "./static.js";
 import { getConfig } from "./config.js";
@@ -12,8 +12,16 @@ const PORT = process.env.PORT || 3000;
 const VERSION = pkg.version;
 
 export async function handleRequest(req, res) {
-  const url = new URL(req.url, `http://localhost:${PORT}`);
-  const pathname = url.pathname;
+  let pathname;
+  try {
+    const url = new URL(req.url, `http://localhost:${PORT}`);
+    pathname = url.pathname;
+  } catch {
+    // Malformed request-target (e.g., absolute-form URI)
+    res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Bad Request");
+    return;
+  }
 
   // Health endpoint
   if (pathname === "/api/health") {
@@ -34,12 +42,23 @@ export async function handleRequest(req, res) {
   }
 
   // Static files
-  const served = await serveStatic(req, res, pathname);
-  if (served) return;
+  try {
+    const served = await serveStatic(req, res, pathname);
+    if (served) return;
+  } catch (err) {
+    // Should not happen (serveStatic catches internally), but guard anyway
+    if (!res.writableEnded) {
+      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Internal Server Error");
+    }
+    return;
+  }
 
   // 404 for unknown paths
-  res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-  res.end("Not Found");
+  if (!res.writableEnded) {
+    res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    res.end("Not Found");
+  }
 }
 
 async function main() {
@@ -51,7 +70,7 @@ async function main() {
 }
 
 function isMainModule() {
-  return import.meta.url === `file://${process.argv[1]}`;
+  return import.meta.url === pathToFileURL(process.argv[1]).href;
 }
 
 if (isMainModule()) {
