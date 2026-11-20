@@ -37,24 +37,50 @@ async function fetchBoard() {
   }
 }
 
+function createCell(text) {
+  const td = document.createElement('td');
+  td.textContent = text;
+  return td;
+}
+
+function createLineChip(line, color) {
+  const span = document.createElement('span');
+  span.className = 'line-chip';
+  if (color) {
+    span.style.backgroundColor = color;
+  }
+  span.textContent = line;
+  return span;
+}
+
 function renderDepartures(boardEl, data) {
   const tbody = boardEl.querySelector('.departures tbody');
   if (!tbody) return;
 
   if (!data || !data.departures?.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">No departures</td></tr>';
+    tbody.innerHTML = ''; // Clear existing
+    const tr = document.createElement('tr');
+    tr.className = 'empty-row';
+    const td = document.createElement('td');
+    td.setAttribute('colspan', '4');
+    td.textContent = 'No departures';
+    tr.appendChild(td);
+    tbody.appendChild(tr);
     return;
   }
 
   tbody.innerHTML = '';
   for (const dep of data.departures) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><span class="line-chip" style="background-color: ${dep.color || 'transparent'}">${dep.line || ''}</span></td>
-      <td>${dep.destination || ''}</td>
-      <td>${dep.minutes !== undefined ? dep.minutes : ''}</td>
-      <td>${dep.platform || dep.remarks || ''}</td>
-    `;
+
+    const lineTd = document.createElement('td');
+    lineTd.appendChild(createLineChip(dep.line || '', dep.color || ''));
+    tr.appendChild(lineTd);
+
+    tr.appendChild(createCell(dep.destination || ''));
+    tr.appendChild(createCell(dep.minutes !== undefined ? String(dep.minutes) : ''));
+    tr.appendChild(createCell(dep.platform || dep.remarks || ''));
+
     tbody.appendChild(tr);
   }
 }
