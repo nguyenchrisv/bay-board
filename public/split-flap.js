@@ -58,15 +58,22 @@ function createSplitFlapCell(text, changedIndices = []) {
   chars.forEach((char, index) => {
     const tile = document.createElement("div");
     tile.className = "split-flap-tile";
-    tile.setProperty("--char-index", index);
+    tile.style.setProperty("--char-index", index);
+    tile.setAttribute("aria-hidden", "true");
 
     const top = document.createElement("div");
     top.className = "split-flap-half top";
-    top.textContent = char;
+    const topInner = document.createElement("span");
+    topInner.className = "char-inner";
+    topInner.textContent = char;
+    top.appendChild(topInner);
 
     const bottom = document.createElement("div");
     bottom.className = "split-flap-half bottom";
-    bottom.textContent = char;
+    const bottomInner = document.createElement("span");
+    bottomInner.className = "char-inner";
+    bottomInner.textContent = char;
+    bottom.appendChild(bottomInner);
 
     const hinge = document.createElement("div");
     hinge.className = "split-flap-hinge";
