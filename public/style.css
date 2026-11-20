@@ -7,6 +7,7 @@
   --accent: #D97757;
   --warn: #B85C38;
   --ok: #5A7D5A;
+  --tile-h: 1.8em;
 }
 
 * {
@@ -204,6 +205,10 @@ body {
   color: var(--flap);
 }
 
+.badge[hidden] {
+  display: none;
+}
+
 /* Departures table */
 .departures {
   width: 100%;
@@ -238,7 +243,7 @@ body {
   background-color: var(--paper);
 }
 
-/* Column widths: LINE 12%, DESTINATION ~60%, MIN 12%, PLATFORM 16% */
+/* Column widths: LINE 12%, DESTINATION ~55%, MIN 13%, PLATFORM 20% */
 .departures th:nth-child(1),
 .departures td:nth-child(1) {
   width: 12%;
@@ -247,20 +252,27 @@ body {
 
 .departures th:nth-child(2),
 .departures td:nth-child(2) {
-  width: 60%;
+  width: 55%;
 }
 
 .departures th:nth-child(3),
 .departures td:nth-child(3) {
-  width: 12%;
+  width: 13%;
   min-width: 50px;
   text-align: right;
 }
 
 .departures th:nth-child(4),
 .departures td:nth-child(4) {
-  width: 16%;
+  width: 20%;
   min-width: 60px;
+}
+
+/* Chip column: prevent overflow into destination on narrow screens */
+.line-chip-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .line-chip {
@@ -273,15 +285,14 @@ body {
   color: var(--ink);
   min-width: 48px;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.line-chip-cell {
-  padding: 8px 12px;
-}
-
-/* Destination cell with split-flap: max ~14 chars + ellipsis tile */
+/* Destination cell with split-flap: max ~12 chars */
 .destination-cell {
-  max-width: 14ch;
+  max-width: 12ch;
   overflow: hidden;
   white-space: nowrap;
 }
@@ -333,12 +344,13 @@ body {
   display: inline-flex;
   flex-direction: column;
   width: 1.2em;
-  height: 1.8em;
+  height: var(--tile-h);
   perspective: 100px;
   background-color: var(--flap);
   border: 1px solid var(--flap-edge);
   border-radius: 2px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .split-flap-half {
@@ -372,15 +384,17 @@ body {
   position: absolute;
   left: 0;
   right: 0;
+  height: 200%;
+  line-height: var(--tile-h);
   white-space: nowrap;
 }
 
 .split-flap-half.top .char-inner {
-  bottom: 0;
+  top: 0;
 }
 
 .split-flap-half.bottom .char-inner {
-  top: -50%;
+  top: -100%;
 }
 
 .split-flap-hinge {
@@ -444,9 +458,4 @@ body {
 *:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
-}
-
-/* Accessibility: hide split-flap animation from screen readers */
-.split-flap-tile {
-  aria-hidden: true;
 }
