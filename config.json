@@ -1,0 +1,14 @@
+{
+  "bart": {
+    "stations": ["16TH"]
+  },
+  "ferry": {
+    "operator": "TBD",
+    "stops": []
+  },
+  "bus": {
+    "operator": "TBD",
+    "stops": []
+  },
+  "budget511PerHour": 55
+}
