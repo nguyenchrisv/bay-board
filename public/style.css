@@ -148,6 +148,13 @@ body {
   display: none;
 }
 
+/* Below 600px: only show selected board */
+@media (max-width: 599px) {
+  .board:not([data-active="true"]) {
+    display: none;
+  }
+}
+
 .board-header {
   display: flex;
   align-items: center;
@@ -202,6 +209,7 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
+  table-layout: fixed;
 }
 
 .departures th {
@@ -230,6 +238,31 @@ body {
   background-color: var(--paper);
 }
 
+/* Column widths: LINE 12%, DESTINATION ~60%, MIN 12%, PLATFORM 16% */
+.departures th:nth-child(1),
+.departures td:nth-child(1) {
+  width: 12%;
+  min-width: 60px;
+}
+
+.departures th:nth-child(2),
+.departures td:nth-child(2) {
+  width: 60%;
+}
+
+.departures th:nth-child(3),
+.departures td:nth-child(3) {
+  width: 12%;
+  min-width: 50px;
+  text-align: right;
+}
+
+.departures th:nth-child(4),
+.departures td:nth-child(4) {
+  width: 16%;
+  min-width: 60px;
+}
+
 .line-chip {
   display: inline-block;
   padding: 2px 8px;
@@ -246,10 +279,10 @@ body {
   padding: 8px 12px;
 }
 
+/* Destination cell with split-flap: max ~14 chars + ellipsis tile */
 .destination-cell {
-  max-width: 200px;
+  max-width: 14ch;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -264,6 +297,19 @@ body {
   color: var(--ink-muted);
   padding: 24px;
   font-style: italic;
+}
+
+/* Visually hidden for screen readers */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* Split-flap tile styles */
@@ -299,9 +345,7 @@ body {
   position: relative;
   width: 100%;
   height: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
   background-color: var(--flap);
   color: var(--ink);
   backface-visibility: hidden;
@@ -312,10 +356,31 @@ body {
 .split-flap-half.top {
   border-bottom: 1px solid var(--flap-edge);
   transform-origin: center bottom;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 .split-flap-half.bottom {
   transform-origin: center top;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.split-flap-half .char-inner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  white-space: nowrap;
+}
+
+.split-flap-half.top .char-inner {
+  bottom: 0;
+}
+
+.split-flap-half.bottom .char-inner {
+  top: -50%;
 }
 
 .split-flap-hinge {
