@@ -39,6 +39,7 @@ describe("BART adapter - getStationName", () => {
     assert.equal(getStationName("16TH"), "16th St Mission");
     assert.equal(getStationName("EMBR"), "Embarcadero");
     assert.equal(getStationName("MONT"), "Montgomery");
+    assert.equal(getStationName("FTVL"), "Fruitvale");
   });
 
   test("returns abbreviation for unknown", () => {
@@ -52,24 +53,41 @@ describe("BART adapter - normalizeEtd", () => {
     const raw = await loadFixture("bart-normal.json");
     const { station, departures } = normalizeEtd(raw);
 
-    assert.equal(station, "16th St Mission");
-    assert.equal(departures.length, 5); // 2 Antioch + 2 SFO + 1 Richmond
+    assert.equal(station, "Fruitvale");
+    // 12 departures total: 3 Berryessa + 3 Daly City + 3 Dublin/Pleasanton + 3 Richmond
+    assert.equal(departures.length, 12);
 
-    // Check sorting by minutes
-    assert.equal(departures[0].minutes, 3); // Richmond first
-    assert.equal(departures[1].minutes, 5); // Antioch
-    assert.equal(departures[2].minutes, 8); // SFO
-    assert.equal(departures[3].minutes, 18); // Antioch
-    assert.equal(departures[4].minutes, 22); // SFO
+    // Check sorting by minutes ascending
+    assert.equal(departures[0].minutes, 1);  // Daly City
+    assert.equal(departures[1].minutes, 7);  // Berryessa
+    assert.equal(departures[2].minutes, 10); // Berryessa
+    assert.equal(departures[3].minutes, 11); // Daly City
+    assert.equal(departures[4].minutes, 14); // Dublin/Pleasanton
+    assert.equal(departures[5].minutes, 16); // Richmond
+    assert.equal(departures[6].minutes, 19); // Daly City
+    assert.equal(departures[7].minutes, 26); // Berryessa
+    assert.equal(departures[8].minutes, 34); // Dublin/Pleasanton
+    assert.equal(departures[9].minutes, 36); // Richmond
+    assert.equal(departures[10].minutes, 54); // Dublin/Pleasanton
+    assert.equal(departures[11].minutes, 56); // Richmond
 
     // Check first departure fields
     const first = departures[0];
-    assert.equal(first.line, "RICH");
-    assert.equal(first.destination, "Richmond");
-    assert.equal(first.minutes, 3);
-    assert.equal(first.platform, "1");
-    assert.equal(first.color, "#FF3333");
+    assert.equal(first.line, "DALY");
+    assert.equal(first.destination, "Daly City");
+    assert.equal(first.minutes, 1);
+    assert.equal(first.platform, "2");
+    assert.equal(first.color, "#339933"); // GREEN
     assert.equal(first.remarks, "");
+  });
+
+  test("colors are valid hex format from recorded fixture", async () => {
+    const raw = await loadFixture("bart-normal.json");
+    const { departures } = normalizeEtd(raw);
+
+    for (const dep of departures) {
+      assert.match(dep.color, /^#[0-9a-f]{6}$/i, `Color ${dep.color} should be valid hex`);
+    }
   });
 
   test("'Leaving' becomes 0 minutes", async () => {
@@ -125,7 +143,7 @@ describe("BART adapter - normalizeEtd", () => {
             estimate: {
               minutes: "5",
               platform: "1",
-              color: "FFFF33",
+              hexcolor: "#ffff33",
             }
           }]
         }]
@@ -134,6 +152,7 @@ describe("BART adapter - normalizeEtd", () => {
     const { departures } = normalizeEtd(raw);
     assert.equal(departures.length, 1);
     assert.equal(departures[0].minutes, 5);
+    assert.equal(departures[0].color, "#ffff33");
   });
 
   test("handles single station (not array)", async () => {
@@ -145,7 +164,7 @@ describe("BART adapter - normalizeEtd", () => {
           etd: [{
             destination: "Test Dest",
             abbreviation: "TEST",
-            estimate: [{ minutes: "5", platform: "1" }]
+            estimate: [{ minutes: "5", platform: "1", hexcolor: "#ffff33" }]
           }]
         }
       }
@@ -160,9 +179,8 @@ describe("BART adapter - normalizeAdvisories", () => {
     const raw = await loadFixture("bart-advisory-normal.json");
     const advisories = normalizeAdvisories(raw);
 
-    assert.equal(advisories.length, 2);
-    assert.ok(advisories[0].includes("Elevator at 16th St Mission"));
-    assert.ok(advisories[1].includes("10-15 minute delays on Yellow Line"));
+    assert.equal(advisories.length, 1);
+    assert.equal(advisories[0], "No advisories issued.");
   });
 
   test("empty bsa returns empty array", () => {

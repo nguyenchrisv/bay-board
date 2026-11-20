@@ -1,113 +1,193 @@
 // Bay Board front-end application
 // Polls /api/board and renders split-flap style departures
 
+import {
+  getLineNameFromColor,
+  formatMinutes,
+  getAccessibleLabel,
+  diffStrings,
+  createSplitFlapCell,
+  createLineChipCell,
+} from "./split-flap.js";
+
 const POLL_INTERVAL_MS = 30_000;
+const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
 const boards = {
-  bart: document.querySelector('[data-mode="bart"]'),
-  ferry: document.querySelector('[data-mode="ferry"]'),
-  bus: document.querySelector('[data-mode="bus"]'),
+  bart: document.querySelector('section.board[data-mode="bart"]'),
+  ferry: document.querySelector('section.board[data-mode="ferry"]'),
+  bus: document.querySelector('section.board[data-mode="bus"]'),
 };
 
-const tabs = document.querySelectorAll('.mode-tabs [role="tab"]');
-const clockEl = document.querySelector('.clock');
+const tabs = document.querySelectorAll(".mode-tabs [role=\"tab\"]");
+const clockEl = document.querySelector(".clock");
+
+// Store previous departures for character diffing
+const previousDepartures = {
+  bart: [],
+  ferry: [],
+  bus: [],
+};
+
+// Track configured modes to avoid stale badge on unconfigured
+const configuredModes = new Set(Object.keys(boards).filter((mode) => {
+  const board = boards[mode];
+  return board && !board.dataset.unconfigured;
+}));
 
 function updateClock() {
   const now = new Date();
-  clockEl.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  clockEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function showMode(mode) {
+  // Update board visibility (for mobile <600px)
   for (const [key, board] of Object.entries(boards)) {
-    board.hidden = key !== mode;
+    if (board) {
+      board.dataset.active = key === mode;
+    }
   }
+  // Update tab aria-selected
   for (const tab of tabs) {
-    tab.setAttribute('aria-selected', tab.dataset.mode === mode);
+    tab.setAttribute("aria-selected", tab.dataset.mode === mode);
   }
 }
 
 async function fetchBoard() {
   try {
-    const res = await fetch('/api/board');
+    const res = await fetch("/api/board");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
-    console.error('Failed to fetch board:', err);
+    console.error("Failed to fetch board:", err);
     return null;
   }
 }
 
-function createCell(text) {
-  const td = document.createElement('td');
-  td.textContent = text;
-  return td;
-}
-
-function createLineChip(line, color) {
-  const span = document.createElement('span');
-  span.className = 'line-chip';
-  if (color) {
-    span.style.backgroundColor = color;
-  }
-  span.textContent = line;
-  return span;
-}
-
-function renderDepartures(boardEl, data) {
-  const tbody = boardEl.querySelector('.departures tbody');
+function renderDepartures(boardEl, data, mode) {
+  const tbody = boardEl.querySelector(".departures tbody");
   if (!tbody) return;
 
   if (!data || !data.departures?.length) {
-    tbody.innerHTML = ''; // Clear existing
-    const tr = document.createElement('tr');
-    tr.className = 'empty-row';
-    const td = document.createElement('td');
-    td.setAttribute('colspan', '4');
-    td.textContent = 'No departures';
+    tbody.innerHTML = "";
+    const tr = document.createElement("tr");
+    tr.className = "empty-row";
+    const td = document.createElement("td");
+    td.setAttribute("colspan", "4");
+    td.textContent = "No departures";
     tr.appendChild(td);
     tbody.appendChild(tr);
+    previousDepartures[mode] = [];
     return;
   }
 
-  tbody.innerHTML = '';
-  for (const dep of data.departures) {
-    const tr = document.createElement('tr');
+  const newDepartures = data.departures;
+  const oldDepartures = previousDepartures[mode] || [];
 
-    const lineTd = document.createElement('td');
-    lineTd.appendChild(createLineChip(dep.line || '', dep.color || ''));
-    tr.appendChild(lineTd);
+  tbody.innerHTML = "";
+  for (let i = 0; i < newDepartures.length; i++) {
+    const dep = newDepartures[i];
+    const oldDep = oldDepartures[i] || {};
 
-    tr.appendChild(createCell(dep.destination || ''));
-    tr.appendChild(createCell(dep.minutes !== undefined ? String(dep.minutes) : ''));
-    tr.appendChild(createCell(dep.platform || dep.remarks || ''));
+    const tr = document.createElement("tr");
+
+    // Line chip cell with visually hidden accessible label
+    const lineChipCell = createLineChipCell(dep);
+    const accessibleLabel = getAccessibleLabel(dep);
+    const srSpan = document.createElement("span");
+    srSpan.className = "visually-hidden";
+    srSpan.textContent = accessibleLabel;
+    lineChipCell.prepend(srSpan);
+    tr.appendChild(lineChipCell);
+
+    // Destination - use split-flap if changed
+    const oldDest = oldDep.destination || "";
+    const newDest = dep.destination || "";
+    const destChanges = diffStrings(oldDest, newDest);
+    tr.appendChild(createSplitFlapCell(newDest, destChanges));
+
+    // Minutes - use split-flap if changed
+    const oldMin = formatMinutes(oldDep.minutes);
+    const newMin = formatMinutes(dep.minutes);
+    const minChanges = diffStrings(oldMin, newMin);
+    const minCell = createSplitFlapCell(newMin, minChanges);
+    if (newMin === "NOW") {
+      minCell.classList.add("boarding");
+    }
+    tr.appendChild(minCell);
+
+    // Platform - use split-flap if changed
+    const oldPlat = oldDep.platform || oldDep.remarks || "";
+    const newPlat = dep.platform || dep.remarks || "";
+    const platChanges = diffStrings(oldPlat, newPlat);
+    tr.appendChild(createSplitFlapCell(newPlat, platChanges));
 
     tbody.appendChild(tr);
   }
+
+  // Update previous departures for next diff
+  previousDepartures[mode] = newDepartures.map((d) => ({
+    destination: d.destination || "",
+    minutes: d.minutes,
+    platform: d.platform || d.remarks || "",
+  }));
 }
 
-function updateBoard(boardEl, data) {
+function updateBoard(boardEl, data, mode) {
   if (!data) return;
 
-  const updatedEl = boardEl.querySelector('.updated');
-  const staleBadge = boardEl.querySelector('.badge.stale');
-  const stopNameEl = boardEl.querySelector('.stop-name');
+  const updatedEl = boardEl.querySelector(".updated");
+  const staleBadge = boardEl.querySelector(".badge.stale");
+  const stopNameEl = boardEl.querySelector(".stop-name");
+
+  if (!updatedEl || !staleBadge || !stopNameEl) {
+    console.error(`Missing required elements in board for mode ${mode}`);
+    return;
+  }
 
   if (data.stop) stopNameEl.textContent = data.stop;
+
+  // Handle unconfigured boards (ferry/bus) - show COMING SOON, no stale badge
+  if (data.unconfigured) {
+    stopNameEl.textContent = data.stop || (mode === "ferry" ? "FERRY" : "BUS");
+    const comingSoon = mode === "ferry" ? "FERRY \u00B7 COMING SOON" : "BUS \u00B7 COMING SOON";
+    const tbody = boardEl.querySelector(".departures tbody");
+    if (tbody) {
+      tbody.innerHTML = "";
+      const tr = document.createElement("tr");
+      tr.className = "empty-row";
+      const td = document.createElement("td");
+      td.setAttribute("colspan", "4");
+      td.textContent = comingSoon;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+    // No stale badge for unconfigured
+    staleBadge.hidden = true;
+    updatedEl.textContent = "";
+    return;
+  }
+
   if (data.updatedAt) {
     const dt = new Date(data.updatedAt);
-    updatedEl.textContent = `UPDATED ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`;
-  }
-  staleBadge.hidden = !data.stale;
+    updatedEl.textContent = `UPDATED ${dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 
-  renderDepartures(boardEl, data);
+    // Check if data is stale (older than 2 minutes) - only for configured modes
+    const isStale = data.stale || Date.now() - dt.getTime() > STALE_THRESHOLD_MS;
+    staleBadge.hidden = !isStale;
+  } else {
+    staleBadge.hidden = false;
+  }
+
+  renderDepartures(boardEl, data, mode);
 }
 
 async function poll() {
   const data = await fetchBoard();
   if (data) {
     for (const [mode, boardEl] of Object.entries(boards)) {
-      if (data[mode]) {
-        updateBoard(boardEl, data[mode]);
+      if (boardEl && data[mode]) {
+        updateBoard(boardEl, data[mode], mode);
       }
     }
   }
@@ -115,17 +195,16 @@ async function poll() {
 
 // Tab switching
 for (const tab of tabs) {
-  tab.addEventListener('click', () => showMode(tab.dataset.mode));
+  tab.addEventListener("click", () => showMode(tab.dataset.mode));
 }
 
-// Reduced motion check
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Initialize: default to BART
+showMode("bart");
 
-// Initialize
 updateClock();
 setInterval(updateClock, 1000);
 poll();
 setInterval(poll, POLL_INTERVAL_MS);
 
 // Expose for testing
-window.__bayBoard = { poll, updateBoard, renderDepartures };
+window.__bayBoard = { poll, updateBoard, renderDepartures, showMode };

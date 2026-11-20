@@ -85,7 +85,7 @@ function normalizeEtd(rawJson) {
       if (minutes === null) continue; // Skip invalid
 
       const line = etd.abbreviation || destination; // Use abbreviation as line identifier
-      const color = est.hexcolor || est.color ? `#${est.color || est.hexcolor}` : "#ffff33";
+      const color = est.hexcolor ? est.hexcolor.toLowerCase() : "#ffff33";
 
       departures.push({
         line,
@@ -117,7 +117,8 @@ function normalizeAdvisories(rawJson) {
 
   for (const bsa of bsaList) {
     if (bsa.description) {
-      advisories.push(bsa.description);
+      const desc = typeof bsa.description === "string" ? bsa.description : bsa.description["#cdata-section"];
+      if (desc) advisories.push(desc);
     }
   }
 

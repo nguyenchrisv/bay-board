@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bay Board</title>
   <link rel="stylesheet" href="/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23D97757' d='M4 17h16M4 17v-3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M7 17v-3a2 2 0 0 1 4 0v3M17 17v-3'/></svg>">
 </head>
 <body>
   <header class="header">
@@ -20,7 +21,7 @@
     <section class="board" data-mode="bart" aria-label="BART departures">
       <div class="board-header">
         <svg class="pictogram" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 17h16M4 17v-3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M7 17v-3a2 2 0 0 1 4 0v3M17 17v-3"/></svg>
-        <span class="stop-name">16th St Mission</span>
+        <span class="stop-name">FRUITVALE</span>
         <span class="updated" aria-live="polite">UPDATED --:--</span>
         <span class="badge stale" hidden>STALE</span>
       </div>
@@ -38,7 +39,7 @@
         </tbody>
       </table>
     </section>
-    <section class="board" data-mode="ferry" aria-label="Ferry departures" hidden>
+    <section class="board" data-mode="ferry" data-unconfigured aria-label="Ferry departures">
       <div class="board-header">
         <svg class="pictogram" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 18h16M6 18V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v10"/></svg>
         <span class="stop-name">—</span>
@@ -51,15 +52,15 @@
             <th scope="col">LINE</th>
             <th scope="col">DESTINATION</th>
             <th scope="col">MIN</th>
-            <th scope="col">REMARKS</th>
+            <th scope="col">PLATFORM</th>
           </tr>
         </thead>
         <tbody>
-          <tr class="loading-row"><td colspan="4">Not configured</td></tr>
+          <tr class="loading-row"><td colspan="4">COMING SOON</td></tr>
         </tbody>
       </table>
     </section>
-    <section class="board" data-mode="bus" aria-label="Bus departures" hidden>
+    <section class="board" data-mode="bus" data-unconfigured aria-label="Bus departures">
       <div class="board-header">
         <svg class="pictogram" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 17h16M4 17v-5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v5M8 17v-5M16 17v-5"/></svg>
         <span class="stop-name">—</span>
@@ -72,15 +73,16 @@
             <th scope="col">LINE</th>
             <th scope="col">DESTINATION</th>
             <th scope="col">MIN</th>
-            <th scope="col">REMARKS</th>
+            <th scope="col">PLATFORM</th>
           </tr>
         </thead>
         <tbody>
-          <tr class="loading-row"><td colspan="4">Not configured</td></tr>
+          <tr class="loading-row"><td colspan="4">COMING SOON</td></tr>
         </tbody>
       </table>
     </section>
   </main>
+  <script type="module" src="/split-flap.js"></script>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
