@@ -1,7 +1,20 @@
 // Bay Board front-end application
 // Polls /api/board and renders split-flap style departures
 
+import {
+  getLineNameFromColor,
+  formatMinutes,
+  getAccessibleLabel,
+  diffStrings,
+  createSplitFlapCell,
+  createLineChipCell,
+  createDestinationCell,
+  createMinutesCell,
+  createPlatformCell,
+} from './split-flap.js';
+
 const POLL_INTERVAL_MS = 30_000;
+const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
 const boards = {
   bart: document.querySelector('[data-mode="bart"]'),
@@ -11,6 +24,13 @@ const boards = {
 
 const tabs = document.querySelectorAll('.mode-tabs [role="tab"]');
 const clockEl = document.querySelector('.clock');
+
+// Store previous departures for character diffing
+const previousDepartures = {
+  bart: [],
+  ferry: [],
+  bus: [],
+};
 
 function updateClock() {
   const now = new Date();
@@ -37,23 +57,7 @@ async function fetchBoard() {
   }
 }
 
-function createCell(text) {
-  const td = document.createElement('td');
-  td.textContent = text;
-  return td;
-}
-
-function createLineChip(line, color) {
-  const span = document.createElement('span');
-  span.className = 'line-chip';
-  if (color) {
-    span.style.backgroundColor = color;
-  }
-  span.textContent = line;
-  return span;
-}
-
-function renderDepartures(boardEl, data) {
+function renderDepartures(boardEl, data, mode) {
   const tbody = boardEl.querySelector('.departures tbody');
   if (!tbody) return;
 
@@ -66,26 +70,58 @@ function renderDepartures(boardEl, data) {
     td.textContent = 'No departures';
     tr.appendChild(td);
     tbody.appendChild(tr);
+    previousDepartures[mode] = [];
     return;
   }
 
+  const newDepartures = data.departures;
+  const oldDepartures = previousDepartures[mode] || [];
+
   tbody.innerHTML = '';
-  for (const dep of data.departures) {
+  for (let i = 0; i < newDepartures.length; i++) {
+    const dep = newDepartures[i];
+    const oldDep = oldDepartures[i] || {};
+    
     const tr = document.createElement('tr');
-
-    const lineTd = document.createElement('td');
-    lineTd.appendChild(createLineChip(dep.line || '', dep.color || ''));
-    tr.appendChild(lineTd);
-
-    tr.appendChild(createCell(dep.destination || ''));
-    tr.appendChild(createCell(dep.minutes !== undefined ? String(dep.minutes) : ''));
-    tr.appendChild(createCell(dep.platform || dep.remarks || ''));
-
+    tr.setAttribute('data-accessible-label', getAccessibleLabel(dep));
+    
+    // Line chip cell
+    tr.appendChild(createLineChipCell(dep));
+    
+    // Destination - use split-flap if changed
+    const oldDest = oldDep.destination || '';
+    const newDest = dep.destination || '';
+    const destChanges = diffStrings(oldDest, newDest);
+    tr.appendChild(createSplitFlapCell(newDest, destChanges));
+    
+    // Minutes - use split-flap if changed
+    const oldMin = formatMinutes(oldDep.minutes);
+    const newMin = formatMinutes(dep.minutes);
+    const minChanges = diffStrings(oldMin, newMin);
+    const minCell = createSplitFlapCell(newMin, minChanges);
+    if (newMin === 'NOW') {
+      minCell.classList.add('boarding');
+    }
+    tr.appendChild(minCell);
+    
+    // Platform - use split-flap if changed
+    const oldPlat = oldDep.platform || oldDep.remarks || '';
+    const newPlat = dep.platform || dep.remarks || '';
+    const platChanges = diffStrings(oldPlat, newPlat);
+    tr.appendChild(createSplitFlapCell(newPlat, platChanges));
+    
     tbody.appendChild(tr);
   }
+
+  // Update previous departures for next diff
+  previousDepartures[mode] = newDepartures.map(d => ({
+    destination: d.destination || '',
+    minutes: d.minutes,
+    platform: d.platform || d.remarks || '',
+  }));
 }
 
-function updateBoard(boardEl, data) {
+function updateBoard(boardEl, data, mode) {
   if (!data) return;
 
   const updatedEl = boardEl.querySelector('.updated');
@@ -96,10 +132,15 @@ function updateBoard(boardEl, data) {
   if (data.updatedAt) {
     const dt = new Date(data.updatedAt);
     updatedEl.textContent = `UPDATED ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+    
+    // Check if data is stale (older than 2 minutes)
+    const isStale = data.stale || (Date.now() - dt.getTime() > STALE_THRESHOLD_MS);
+    staleBadge.hidden = !isStale;
+  } else {
+    staleBadge.hidden = false;
   }
-  staleBadge.hidden = !data.stale;
 
-  renderDepartures(boardEl, data);
+  renderDepartures(boardEl, data, mode);
 }
 
 async function poll() {
@@ -107,7 +148,7 @@ async function poll() {
   if (data) {
     for (const [mode, boardEl] of Object.entries(boards)) {
       if (data[mode]) {
-        updateBoard(boardEl, data[mode]);
+        updateBoard(boardEl, data[mode], mode);
       }
     }
   }
@@ -117,9 +158,6 @@ async function poll() {
 for (const tab of tabs) {
   tab.addEventListener('click', () => showMode(tab.dataset.mode));
 }
-
-// Reduced motion check
-const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Initialize
 updateClock();
