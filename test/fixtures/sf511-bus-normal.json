@@ -1,0 +1,46 @@
+{
+  "ServiceDelivery": {
+    "StopMonitoringDelivery": [
+      {
+        "MonitoredStopVisit": [
+          {
+            "MonitoredVehicleJourney": {
+              "LineRef": "O",
+              "PublishedLineName": "O",
+              "DestinationName": "Salesforce Transit Center",
+              "AimedDepartureTime": "2026-11-22T10:10:00-08:00",
+              "ExpectedDepartureTime": "2026-11-22T10:11:00-08:00",
+              "MonitoredCall": {
+                "StopPointRef": "57727"
+              }
+            }
+          },
+          {
+            "MonitoredVehicleJourney": {
+              "LineRef": "O",
+              "PublishedLineName": "O",
+              "DestinationName": "Fruitvale BART",
+              "AimedDepartureTime": "2026-11-22T10:25:00-08:00",
+              "ExpectedDepartureTime": "2026-11-22T10:25:00-08:00",
+              "MonitoredCall": {
+                "StopPointRef": "57780"
+              }
+            }
+          },
+          {
+            "MonitoredVehicleJourney": {
+              "LineRef": "NL",
+              "PublishedLineName": "NL",
+              "DestinationName": "Eastmont Transit Center",
+              "AimedDepartureTime": "2026-11-22T10:12:00-08:00",
+              "ExpectedDepartureTime": "2026-11-22T10:13:00-08:00",
+              "MonitoredCall": {
+                "StopPointRef": "57727"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

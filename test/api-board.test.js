@@ -19,7 +19,11 @@ async function loadFixture(name) {
 function createTestConfig() {
   return async () => ({
     bartApiKey: "TEST_KEY_12345",
+    api511Key: "TEST_511_KEY",
     bart: { stations: ["FTVL"] },
+    ferry: { operator: "SB", stops: ["7206"] },
+    bus: { operator: "AC", stops: ["57727", "57780"], lines: ["O"] },
+    budget511PerHour: 55,
   });
 }
 
@@ -35,6 +39,15 @@ function createMockFetch(fixtures) {
       return {
         ok: true,
         text: async () => JSON.stringify(fixtures.bsa),
+      };
+    }
+    if (url.includes("/transit/StopMonitoring")) {
+      return {
+        ok: true,
+        arrayBuffer: async () => {
+          const text = JSON.stringify(fixtures.sf511);
+          return new TextEncoder().encode(text).buffer;
+        },
       };
     }
     return { ok: false, status: 404 };
@@ -102,10 +115,11 @@ describe("API /api/board endpoints", () => {
     // Create a test poller with fake fetch/timers
     const etdFixture = await loadFixture("bart-normal.json");
     const bsaFixture = await loadFixture("bart-advisory-normal.json");
+    const sf511Fixture = await loadFixture("sf511-ferry-normal.json");
     mockTimers = createFakeTimers();
 
     const testPoller = createPoller({
-      fetchImpl: createMockFetch({ etd: etdFixture, bsa: bsaFixture }),
+      fetchImpl: createMockFetch({ etd: etdFixture, bsa: bsaFixture, sf511: sf511Fixture }),
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl: () => new Date("2026-11-20T10:00:00Z"),
@@ -136,10 +150,10 @@ describe("API /api/board endpoints", () => {
     assert.equal(body.bart.stop, "Fruitvale");
     assert.ok(body.ferry);
     assert.equal(body.ferry.mode, "ferry");
-    assert.equal(body.ferry.unconfigured, true);
+    assert.equal(body.ferry.unconfigured, false); // Now configured
     assert.ok(body.bus);
     assert.equal(body.bus.mode, "bus");
-    assert.equal(body.bus.unconfigured, true);
+    assert.equal(body.bus.unconfigured, false); // Now configured
   });
 
   test("GET /api/board/bart returns BART board", async () => {
@@ -154,20 +168,28 @@ describe("API /api/board endpoints", () => {
     assert.ok(Array.isArray(body.bart.departures));
   });
 
-  test("GET /api/board/ferry returns 404 (not implemented)", async () => {
+  test("GET /api/board/ferry returns ferry board", async () => {
     const res = await fetch(`${baseUrl}/api/board/ferry`);
-    assert.equal(res.status, 404);
+    assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "application/json; charset=utf-8");
 
     const body = await res.json();
-    assert.equal(body.error, "Not found");
+    assert.ok(body.ferry);
+    assert.equal(body.ferry.mode, "ferry");
+    assert.equal(body.ferry.unconfigured, false);
+    assert.ok(Array.isArray(body.ferry.departures));
   });
 
-  test("GET /api/board/bus returns 404 (not implemented)", async () => {
+  test("GET /api/board/bus returns bus board", async () => {
     const res = await fetch(`${baseUrl}/api/board/bus`);
-    assert.equal(res.status, 404);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "application/json; charset=utf-8");
+
     const body = await res.json();
-    assert.equal(body.error, "Not found");
+    assert.ok(body.bus);
+    assert.equal(body.bus.mode, "bus");
+    assert.equal(body.bus.unconfigured, false);
+    assert.ok(Array.isArray(body.bus.departures));
   });
 
   test("GET /api/board/unknown returns 404", async () => {
