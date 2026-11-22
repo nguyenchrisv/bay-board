@@ -101,9 +101,10 @@ function renderDepartures(boardEl, data, mode) {
     lineChipCell.prepend(srSpan);
     tr.appendChild(lineChipCell);
 
-    // Destination - capped/padded to a uniform 12-tile grid so long names
-    // never overflow into the MIN column (issue #6)
-    const oldDest = oldDep.destination || "";
+    // Destination - capped to 12 tiles (no padding) so long names never
+    // overflow into the MIN column (issue #6). Format both sides so diff
+    // compares padded values and blank tiles don't re-animate on poll.
+    const oldDest = formatDestination(oldDep.destination);
     const newDest = formatDestination(dep.destination);
     const destChanges = diffStrings(oldDest, newDest);
     tr.appendChild(createSplitFlapCell(newDest, destChanges, "destination-cell"));

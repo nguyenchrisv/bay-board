@@ -367,20 +367,19 @@ body {
   gap: 2px;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: 700;
-  font-size: 0.875rem;
+  font-size: clamp(0.55rem, 1.2vw, 0.75rem);  /* Scale so 12 tiles fit at 375px (0.55rem) up to desktop (0.75rem) */
   letter-spacing: 0.02em;
   text-transform: uppercase;
   font-variant-numeric: tabular-nums;
 }
 
-/* Tiles shrink to fit their cell instead of overflowing into the next
-   column (issue #6). min-width: 0 lets flex distribute the shrink. */
+/* Tiles size to content (no shrink) so glyphs never break. Font scales
+   via clamp() on the container so 12 tiles fit even at 375px. */
 .split-flap-tile {
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  flex: 0 1 1.2em;
-  min-width: 0;
+  flex: 0 0 auto;
   height: var(--tile-h);
   perspective: 100px;
   background-color: var(--flap);

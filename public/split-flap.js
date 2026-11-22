@@ -1,13 +1,12 @@
 // Split-flap utilities: pure functions for color mapping, minutes formatting, and character diffing
 
-// Destination column shows exactly this many split-flap tiles per row
+// Destination column shows at most this many split-flap tiles per row
 const MAX_DEST_TILES = 12;
 
-// Cap a destination at MAX_DEST_TILES characters and pad with blanks so
-// every row renders as a uniform grid of MAX_DEST_TILES tiles. Long names
+// Cap a destination at MAX_DEST_TILES characters (no padding). Long names
 // like "Dublin/Pleasanton" otherwise overflow into the MIN column.
 function formatDestination(destination) {
-  return String(destination || "").slice(0, MAX_DEST_TILES).padEnd(MAX_DEST_TILES, " ");
+  return String(destination || "").slice(0, MAX_DEST_TILES);
 }
 
 // Short visual label for the line chip (e.g. "Yellow" -> "Yel"). The

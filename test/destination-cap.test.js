@@ -12,14 +12,14 @@ describe("formatDestination", () => {
     assert.equal(formatDestination("DUBLIN/PLEASANTON"), "DUBLIN/PLEAS");
   });
 
-  test("pads short names with blanks so every row is 12 tiles", () => {
-    assert.equal(formatDestination("Daly City"), "Daly City   ");
-    assert.equal(formatDestination("Antioch"), "Antioch     ");
+  test("does not pad short names (no trailing blanks)", () => {
+    assert.equal(formatDestination("Daly City"), "Daly City");
+    assert.equal(formatDestination("Antioch"), "Antioch");
   });
 
-  test("returns 12 characters for every input", () => {
-    for (const input of ["Richmond", "", null, undefined, "Berryessa WTF"]) {
-      assert.equal(formatDestination(input).length, 12);
+  test("returns at most 12 characters for every input", () => {
+    for (const input of ["Richmond", "", null, undefined, "Berryessa North"]) {
+      assert.ok(formatDestination(input).length <= 12);
     }
   });
 
@@ -29,10 +29,12 @@ describe("formatDestination", () => {
 });
 
 describe("chipLabel", () => {
-  test("shortens line names to at most 3 characters", () => {
-    assert.equal(chipLabel("Yellow"), "Yel");
-    assert.equal(chipLabel("Green"), "Gre");
-    assert.equal(chipLabel("Orange"), "Ora");
+  test("shortens destination abbreviations to at most 3 characters", () => {
+    // Real BART destination abbreviations from API
+    assert.equal(chipLabel("RICH"), "RIC");
+    assert.equal(chipLabel("DUBL"), "DUB");
+    assert.equal(chipLabel("BERY"), "BER");
+    assert.equal(chipLabel("DALY"), "DAL");
   });
 
   test("keeps short line codes as-is", () => {
