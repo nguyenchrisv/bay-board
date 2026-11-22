@@ -373,13 +373,17 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Tiles size to content (no shrink) so glyphs never break. Font scales
-   via clamp() on the container so 12 tiles fit even at 375px. */
+/* Explicit width tied to font size: glyphs are absolutely positioned
+   (.char-inner), so auto basis would collapse to 2px (just borders).
+   0.75em per tile + 2px gap ensures 12 tiles fit the DEST column at 375px
+   (0.55rem font → ~9.6px tiles + 2px gap = ~11.6px; 12 tiles ≈ 139px;
+   column ≈ 173px at 375px — fits). */
 .split-flap-tile {
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  flex: 0 0 auto;
+  flex: 0 0 0.75em;
+  width: 0.75em;
   height: var(--tile-h);
   perspective: 100px;
   background-color: var(--flap);
