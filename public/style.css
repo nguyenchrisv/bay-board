@@ -357,34 +357,50 @@ body {
 }
 
 /* Split-flap tile styles */
-.split-flap-cell {
+/* Higher specificity than ".departures td" so the tight 4px horizontal
+   padding applies at every breakpoint. */
+.departures td.split-flap-cell {
   padding: 8px 4px;
 }
 
+/* The flex container is the query container: Chromium ignores
+   container-type on table-cell boxes, so the td itself cannot be one.
+   Tiles (children) resolve 100cqi against this container, whose width is
+   the cell content width — tile size comes from the column, not the
+   viewport. */
 .split-flap-container {
+  container-type: inline-size;
+  /* JS publishes the tile count per cell on the container (--tiles: 12 or
+     10 for destinations, the text length for MIN/PLAT); the default covers
+     server-rendered/empty cells. */
+  --tile-gap: 1px;
+  --tiles: 12;
   display: flex;
   width: 100%;
-  gap: 2px;
+  gap: var(--tile-gap);
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: 700;
-  font-size: clamp(0.55rem, 1.2vw, 0.75rem);  /* Scale so 12 tiles fit at 375px (0.55rem) up to desktop (0.75rem) */
   letter-spacing: 0.02em;
   text-transform: uppercase;
   font-variant-numeric: tabular-nums;
 }
 
-/* Explicit width tied to font size: glyphs are absolutely positioned
-   (.char-inner), so auto basis would collapse to 2px (just borders).
-   0.75em per tile + 2px gap ensures 12 tiles fit the DEST column at 375px
-   (0.55rem font → ~9.6px tiles + 2px gap = ~11.6px; 12 tiles ≈ 139px;
-   column ≈ 173px at 375px — fits). */
+/* One variable drives both tile width and glyph size, so glyphs always fit
+   their tile: tile = min(17px, column width shared evenly by --tiles tiles
+   and their gaps). At 1280 the DEST cell is ~192px wide → 12 × ~15.1px
+   tiles (>= 15px target); at 375px ~156px → 12 × ~12.1px (>= 12px target).
+   Glyphs are absolutely positioned (.char-inner) and contribute no
+   intrinsic width, so an auto basis would collapse the tile to its
+   borders — hence the explicit width. */
 .split-flap-tile {
+  --tile: min(17px, calc((100cqi - (var(--tiles) - 1) * var(--tile-gap)) / var(--tiles)));
+  font-size: calc(var(--tile) * 0.78);
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  flex: 0 0 0.75em;
-  width: 0.75em;
-  height: var(--tile-h);
+  flex: 0 0 var(--tile);
+  width: var(--tile);
+  height: 1.8em;
   perspective: 100px;
   background-color: var(--flap);
   border: 1px solid var(--flap-edge);

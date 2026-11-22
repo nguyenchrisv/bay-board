@@ -26,6 +26,19 @@ describe("formatDestination", () => {
   test("leaves names of exactly 12 characters unchanged", () => {
     assert.equal(formatDestination("Pleasanton W"), "Pleasanton W");
   });
+
+  test("caps at 10 tiles on narrow screens", () => {
+    assert.equal(formatDestination("Dublin/Pleasanton", 10), "Dublin/Ple");
+    assert.equal(formatDestination("Richmond", 10), "Richmond");
+  });
+
+  test("never returns more tiles than the cap allows", () => {
+    for (const cap of [10, 12]) {
+      for (const input of ["Richmond", "", null, undefined, "Dublin/Pleasanton"]) {
+        assert.ok(formatDestination(input, cap).length <= cap);
+      }
+    }
+  });
 });
 
 describe("chipLabel", () => {

@@ -3,10 +3,12 @@
 // Destination column shows at most this many split-flap tiles per row
 const MAX_DEST_TILES = 12;
 
-// Cap a destination at MAX_DEST_TILES characters (no padding). Long names
-// like "Dublin/Pleasanton" otherwise overflow into the MIN column.
-function formatDestination(destination) {
-  return String(destination || "").slice(0, MAX_DEST_TILES);
+// Cap a destination at maxTiles characters (no padding). Long names like
+// "Dublin/Pleasanton" otherwise overflow into the MIN column. Narrow
+// screens render 10 tiles instead of 12 (see app.js destCap), so the cap
+// is a parameter.
+function formatDestination(destination, maxTiles = MAX_DEST_TILES) {
+  return String(destination || "").slice(0, maxTiles);
 }
 
 // Short visual label for the line chip (e.g. "Yellow" -> "Yel"). The
@@ -61,7 +63,11 @@ function diffStrings(oldStr, newStr) {
   return changes;
 }
 
-function createSplitFlapCell(text, changedIndices = [], cellClass = "") {
+// tileCount: how many tiles the CSS size formula should assume for this
+// cell (see style.css --tile). Defaults to the actual character count so
+// MIN/PLAT tiles fill their own columns; the destination cell passes its
+// cap (12 or 10) so every destination row shares one tile size.
+function createSplitFlapCell(text, changedIndices = [], cellClass = "", tileCount = null) {
   const td = document.createElement("td");
   td.className = cellClass ? `split-flap-cell ${cellClass}` : "split-flap-cell";
 
@@ -70,6 +76,10 @@ function createSplitFlapCell(text, changedIndices = [], cellClass = "") {
   container.className = "split-flap-container";
 
   const chars = text.split("");
+  container.style.setProperty(
+    "--tiles",
+    String(tileCount ?? Math.max(chars.length, 1))
+  );
   chars.forEach((char, index) => {
     const tile = document.createElement("div");
     tile.className = "split-flap-tile";
