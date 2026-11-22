@@ -1,9 +1,0 @@
-{
-  "ServiceDelivery": {
-    "StopMonitoringDelivery": [
-      {
-        "MonitoredStopVisit": []
-      }
-    ]
-  }
-}

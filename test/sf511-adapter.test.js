@@ -6,7 +6,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { gzipSync } from "node:zlib";
-import { normalizeStopMonitoring, stripBom, maybeDecompress, parseMinutes, OPERATOR_NAMES, STOP_NAMES } from "../src/adapters/sf511.js";
+import { normalizeStopMonitoring, stripBom, maybeDecompress, parseMinutes, getOperatorColor, OPERATOR_NAMES, STOP_NAMES } from "../src/adapters/sf511.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,7 +14,7 @@ const FIXTURE_DIR = join(__dirname, "fixtures");
 
 async function loadFixture(name) {
   const content = await readFile(join(FIXTURE_DIR, name), "utf-8");
-  return JSON.parse(content);
+  return JSON.parse(content.replace(/^\uFEFF/, ""));
 }
 
 describe("511 adapter - stripBom", () => {
@@ -53,18 +53,13 @@ describe("511 adapter - parseMinutes", () => {
     const now = new Date("2026-11-22T10:00:00-08:00");
     const expected = "2026-11-22T10:15:00-08:00";
     const aimed = "2026-11-22T10:10:00-08:00";
-    // Expected takes precedence, so 15 minutes
-    // But we can't easily test without mocking now, so test the logic
-    const diffMs = new Date(expected) - now;
-    const minutes = Math.round(diffMs / 60000);
-    assert.equal(minutes, 15);
+    assert.equal(parseMinutes(expected, aimed, now), 15);
   });
 
   it("returns 0 for past departure", () => {
     const now = new Date("2026-11-22T10:20:00-08:00");
     const expected = "2026-11-22T10:15:00-08:00";
-    const diffMs = new Date(expected) - now;
-    assert.ok(diffMs < 0);
+    assert.equal(parseMinutes(expected, null, now), 0);
   });
 
   it("returns null if no times provided", () => {
@@ -72,91 +67,31 @@ describe("511 adapter - parseMinutes", () => {
   });
 });
 
-describe("511 adapter - normalizeStopMonitoring (ferry)", () => {
+describe("511 adapter - recorded StopMonitoring response", () => {
   let fixture;
 
   before(async () => {
-    fixture = await loadFixture("sf511-ferry-normal.json");
+    // Unmodified live capture from 2026-06-22:
+    // https://github.com/13rac1/wheres-that-muni/blob/main/internal/transit/testdata/live_stopmonitoring.json
+    fixture = await loadFixture("sf511-stopmonitoring-recorded.json");
   });
 
-  it("produces normalized board with correct mode and stop", () => {
-    const result = normalizeStopMonitoring(fixture, "SB", "7206");
-    assert.equal(result.stop, "Harbor Bay Ferry Terminal");
-    assert.ok(Array.isArray(result.departures));
+  it("normalizes object delivery and MonitoredCall times", () => {
+    const now = new Date("2026-06-22T21:57:32Z");
+    const result = normalizeStopMonitoring(fixture, "SF", "17999", ["N"], now);
+
+    assert.equal(result.stop, "9th Ave & Irving St");
+    assert.equal(result.departures.length, 3);
+    assert.deepEqual(result.departures.map((dep) => dep.minutes), [6, 13, 21]);
+    assert.deepEqual(result.departures.map((dep) => dep.line), ["JUDAH", "JUDAH", "JUDAH"]);
+    assert.equal(result.departures[0].destination, "Judah/La Playa/Ocean Beach");
+    assert.equal(result.departures[0].platform, "17999");
   });
 
-  it("includes departures with correct fields", () => {
-    const result = normalizeStopMonitoring(fixture, "SB", "7206");
-    assert.equal(result.departures.length, 2);
-    for (const dep of result.departures) {
-      assert.ok(dep.line);
-      assert.ok(dep.destination);
-      assert.ok(typeof dep.minutes === "number");
-      assert.ok(dep.color);
-      assert.equal(dep.color, "#0099cc"); // ferry blue
-    }
-  });
-
-  it("sorts departures by minutes ascending", () => {
-    const result = normalizeStopMonitoring(fixture, "SB", "7206");
-    for (let i = 1; i < result.departures.length; i++) {
-      assert.ok(result.departures[i].minutes >= result.departures[i - 1].minutes);
-    }
-  });
-
-  it("uses stop name from STOP_NAMES map", () => {
-    const result = normalizeStopMonitoring(fixture, "SB", "7206");
-    assert.equal(result.stop, "Harbor Bay Ferry Terminal");
-  });
-});
-
-describe("511 adapter - normalizeStopMonitoring (bus with line filter)", () => {
-  let fixture;
-
-  before(async () => {
-    fixture = await loadFixture("sf511-bus-normal.json");
-  });
-
-  it("filters to only allowed lines", () => {
-    const result = normalizeStopMonitoring(fixture, "AC", "57727", ["O"]);
-    // Should only include line "O" (2 departures in fixture), not "NL"
-    assert.equal(result.departures.length, 2);
-    for (const dep of result.departures) {
-      assert.equal(dep.line, "O");
-    }
-  });
-
-  it("includes all lines if allowedLines is empty", () => {
-    const result = normalizeStopMonitoring(fixture, "AC", "57727", []);
-    assert.equal(result.departures.length, 3); // O (2) + NL (1)
-  });
-
-  it("uses orange color for AC Transit", () => {
-    const result = normalizeStopMonitoring(fixture, "AC", "57727", ["O"]);
-    assert.equal(result.departures[0].color, "#ff9933");
-  });
-
-  it("uses stop name from STOP_NAMES map", () => {
-    const result = normalizeStopMonitoring(fixture, "AC", "57727");
-    assert.equal(result.stop, "High St & Encinal Av (westbound)");
-  });
-});
-
-describe("511 adapter - normalizeStopMonitoring (empty)", () => {
-  let fixture;
-
-  before(async () => {
-    fixture = await loadFixture("sf511-empty.json");
-  });
-
-  it("returns empty departures for empty response", () => {
-    const result = normalizeStopMonitoring(fixture, "SB", "7206");
+  it("filters the recorded response by LineRef", () => {
+    const now = new Date("2026-06-22T21:57:32Z");
+    const result = normalizeStopMonitoring(fixture, "SF", "17999", ["OTHER"], now);
     assert.equal(result.departures.length, 0);
-  });
-
-  it("returns stop name even for empty", () => {
-    const result = normalizeStopMonitoring(fixture, "SB", "7206");
-    assert.equal(result.stop, "Harbor Bay Ferry Terminal");
   });
 });
 
@@ -180,6 +115,20 @@ describe("511 adapter - normalizeStopMonitoring (malformed input)", () => {
   it("handles empty StopMonitoringDelivery array", () => {
     const result = normalizeStopMonitoring({ ServiceDelivery: { StopMonitoringDelivery: [] } }, "SB", "7206");
     assert.equal(result.departures.length, 0);
+  });
+});
+
+describe("511 adapter - operator colors", () => {
+  it("uses blue for SF Bay Ferry", () => {
+    assert.equal(getOperatorColor("SB"), "#0099cc");
+  });
+
+  it("uses orange for AC Transit", () => {
+    assert.equal(getOperatorColor("AC"), "#ff9933");
+  });
+
+  it("uses the default color for other operators", () => {
+    assert.equal(getOperatorColor("SF"), "#ffff33");
   });
 });
 

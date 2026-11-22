@@ -33,8 +33,7 @@ function maybeDecompress(buffer) {
   return buffer;
 }
 
-function parseMinutes(expectedDepartureTime, aimedDepartureTime) {
-  const now = new Date();
+function parseMinutes(expectedDepartureTime, aimedDepartureTime, now = new Date()) {
   let depTime;
 
   if (expectedDepartureTime) {
@@ -51,32 +50,29 @@ function parseMinutes(expectedDepartureTime, aimedDepartureTime) {
   return minutes;
 }
 
-function normalizeStopMonitoring(rawJson, operator, stopCode, allowedLines = []) {
-  // rawJson is already parsed JSON (BOM stripped, decompressed)
-  // SIRI StopMonitoring structure:
-  // {
-  //   "ServiceDelivery": {
-  //     "StopMonitoringDelivery": [{
-  //       "MonitoredStopVisit": [...]
-  //     }]
-  //   }
-  // }
+function asArray(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
 
-  if (!rawJson || !rawJson.ServiceDelivery || !rawJson.ServiceDelivery.StopMonitoringDelivery) {
-    return { stop: STOP_NAMES[stopCode] || stopCode, departures: [] };
-  }
+function getOperatorColor(operator) {
+  if (operator === "SB") return "#0099cc";
+  if (operator === "AC") return "#ff9933";
+  return "#ffff33";
+}
 
-  const deliveries = rawJson.ServiceDelivery.StopMonitoringDelivery;
-  if (!deliveries.length) {
-    return { stop: STOP_NAMES[stopCode] || stopCode, departures: [] };
-  }
-
-  const delivery = deliveries[0];
-  const visits = delivery.MonitoredStopVisit || [];
+function normalizeStopMonitoring(rawJson, operator, stopCode, allowedLines = [], now = new Date()) {
+  // Live 511 responses use a top-level ServiceDelivery and may encode both
+  // StopMonitoringDelivery and MonitoredStopVisit as objects or arrays.
+  const serviceDelivery = rawJson?.ServiceDelivery || rawJson?.Siri?.ServiceDelivery;
+  const deliveries = asArray(serviceDelivery?.StopMonitoringDelivery);
+  const visits = deliveries.flatMap((delivery) => asArray(delivery?.MonitoredStopVisit));
+  const responseStopName = visits[0]?.MonitoredVehicleJourney?.MonitoredCall?.StopPointName;
+  const stop = STOP_NAMES[stopCode] || responseStopName || stopCode;
   const departures = [];
 
   for (const visit of visits) {
-    const journey = visit.MonitoredVehicleJourney;
+    const journey = visit?.MonitoredVehicleJourney;
     if (!journey) continue;
 
     const lineRef = journey.LineRef || "";
@@ -87,38 +83,27 @@ function normalizeStopMonitoring(rawJson, operator, stopCode, allowedLines = [])
       continue;
     }
 
-    const destination = journey.DestinationName || "";
-    const aimedDepartureTime = journey.AimedDepartureTime;
-    const expectedDepartureTime = journey.ExpectedDepartureTime;
-    const minutes = parseMinutes(expectedDepartureTime, aimedDepartureTime);
+    const call = journey.MonitoredCall || {};
+    const expectedTime = call.ExpectedArrivalTime || call.ExpectedDepartureTime || journey.ExpectedArrivalTime || journey.ExpectedDepartureTime;
+    const aimedTime = call.AimedArrivalTime || call.AimedDepartureTime || journey.AimedArrivalTime || journey.AimedDepartureTime;
+    const minutes = parseMinutes(expectedTime, aimedTime, now);
 
     if (minutes === null) continue;
 
-    // Determine color based on operator/line
-    let color = "#ffff33"; // default yellow
-    if (operator === "SB") {
-      color = "#0099cc"; // blue for ferry
-    } else if (operator === "AC") {
-      color = "#ff9933"; // orange for AC Transit
-    }
+    const color = getOperatorColor(operator);
 
     departures.push({
       line: lineName,
-      destination,
+      destination: journey.DestinationName || "",
       minutes,
-      platform: journey.MonitoredCall?.StopPointRef || "",
+      platform: call.StopPointRef || "",
       color,
       remarks: "",
     });
   }
 
-  // Sort by minutes ascending
   departures.sort((a, b) => a.minutes - b.minutes);
-
-  return {
-    stop: STOP_NAMES[stopCode] || stopCode,
-    departures,
-  };
+  return { stop, departures };
 }
 
-export { normalizeStopMonitoring, stripBom, maybeDecompress, OPERATOR_NAMES, STOP_NAMES, parseMinutes };
+export { normalizeStopMonitoring, stripBom, maybeDecompress, getOperatorColor, OPERATOR_NAMES, STOP_NAMES, parseMinutes };

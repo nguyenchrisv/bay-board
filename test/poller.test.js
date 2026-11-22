@@ -11,7 +11,7 @@ const FIXTURE_DIR = join(__dirname, "fixtures");
 
 async function loadFixture(name) {
   const content = await readFile(join(FIXTURE_DIR, name), "utf-8");
-  return JSON.parse(content);
+  return JSON.parse(content.replace(/^\uFEFF/, ""));
 }
 
 function createTestConfig() {
@@ -337,7 +337,7 @@ describe("511 poller with budget", () => {
       api511Key: "TEST_511_KEY",
       bart: { stations: [] },
       ferry: { operator: "SB", stops: ["7206"] },
-      bus: { operator: "AC", stops: ["57727"], lines: ["O"] },
+      bus: { operator: "AC", stops: ["57727"], lines: ["N"] },
       budget511PerHour: budget,
     });
   }
@@ -353,7 +353,7 @@ describe("511 poller with budget", () => {
   test("poller fetches 511 ferry data and caches normalized board", async () => {
     resetPoller();
 
-    const sf511Fixture = await loadFixture("sf511-ferry-normal.json");
+    const sf511Fixture = await loadFixture("sf511-stopmonitoring-recorded.json");
     const bsaFixture = await loadFixture("bart-advisory-normal.json");
 
     mockFetch = createMockFetch({ etd: null, bsa: bsaFixture, sf511: sf511Fixture });
@@ -380,7 +380,7 @@ describe("511 poller with budget", () => {
     assert.equal(board.stop, "Harbor Bay Ferry Terminal");
     assert.equal(board.stale, false);
     assert.equal(board.error, null);
-    assert.equal(board.departures.length, 2);
+    assert.equal(board.departures.length, 3);
     for (const dep of board.departures) {
       assert.equal(dep.color, "#0099cc"); // ferry blue
     }
@@ -389,7 +389,7 @@ describe("511 poller with budget", () => {
   test("poller fetches 511 bus data with line filter", async () => {
     resetPoller();
 
-    const sf511Fixture = await loadFixture("sf511-bus-normal.json");
+    const sf511Fixture = await loadFixture("sf511-stopmonitoring-recorded.json");
     const bsaFixture = await loadFixture("bart-advisory-normal.json");
 
     mockFetch = createMockFetch({ etd: null, bsa: bsaFixture, sf511: sf511Fixture });
@@ -416,110 +416,109 @@ describe("511 poller with budget", () => {
     assert.equal(board.stop, "High St & Encinal Av (westbound)");
     assert.equal(board.stale, false);
     assert.equal(board.error, null);
-    // Should only include line O (2 departures in fixture)
-    assert.equal(board.departures.length, 2);
+    // The recorded response has three N/JUDAH departures.
+    assert.equal(board.departures.length, 3);
     for (const dep of board.departures) {
-      assert.equal(dep.line, "O");
+      assert.equal(dep.line, "JUDAH");
       assert.equal(dep.color, "#ff9933"); // AC Transit orange
     }
   });
 
-  test("511 budget manager tracks request count", async () => {
+  test("511 budget blocks requests after exhaustion", async () => {
     resetPoller();
 
-    const sf511Fixture = await loadFixture("sf511-ferry-normal.json");
+    const sf511Fixture = await loadFixture("sf511-stopmonitoring-recorded.json");
     const bsaFixture = await loadFixture("bart-advisory-normal.json");
-
-    mockFetch = createMockFetch({ etd: null, bsa: bsaFixture, sf511: sf511Fixture });
+    const fixtures = { etd: null, bsa: bsaFixture, sf511: sf511Fixture };
+    let requestCount = 0;
+    mockFetch = async (url) => {
+      if (url.includes("/transit/StopMonitoring")) requestCount++;
+      return createMockFetch(fixtures)(url);
+    };
     mockTimers = createFakeTimers();
     fakeNow = 0;
     const nowImpl = () => new Date(fakeNow);
 
-    // Use very small budget to test limiting
     poller = createPoller({
       fetchImpl: mockFetch,
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl,
-      getConfig: createBudgetTestConfig(2), // Only 2 requests per hour
+      getConfig: async () => ({
+        bartApiKey: "",
+        api511Key: "TEST_511_KEY",
+        bart: { stations: [] },
+        ferry: { operator: "SB", stops: ["7206"] },
+        bus: { operator: "AC", stops: ["57727", "57780"], lines: ["O"] },
+        budget511PerHour: 2,
+      }),
     });
 
     await poller.start();
-    await new Promise((resolve) => setTimeout(resolve, 10));
 
-    // Initial fetch should succeed for ferry and one bus stop (2 requests)
+    assert.equal(requestCount, 2);
     const cache = poller.getCache();
-    assert.ok(cache.has("ferry:7206"));
-    assert.ok(cache.has("bus:57727"));
-
-    // Advance time to trigger next poll cycle
-    fakeNow += 200_000; // ~3.3 min
-    await mockTimers.advance(200_000);
-
-    // Budget should be exhausted, no new requests made
-    // The boards should remain stale with "budget exceeded" error
-    // (This test verifies the budget mechanism works conceptually)
+    assert.equal(cache.get("ferry:7206").stale, false);
+    assert.equal(cache.get("bus:57727").stale, false);
+    assert.equal(cache.get("bus:57780").stale, true);
+    assert.equal(cache.get("bus:57780").error, "No data yet");
   });
 
   test("511 budget respects rolling hour window (simulate 2 hours)", async () => {
-    // This test simulates a fake clock advancing over 2 hours
-    // and asserts that the budget mechanism tracks requests per rolling hour
-
     resetPoller();
 
-    const sf511Fixture = await loadFixture("sf511-ferry-normal.json");
+    const sf511Fixture = await loadFixture("sf511-stopmonitoring-recorded.json");
     const bsaFixture = await loadFixture("bart-advisory-normal.json");
-
-    let requestCount = 0;
+    const fixtures = { etd: null, bsa: bsaFixture, sf511: sf511Fixture };
+    const requestTimes = [];
     const countingFetch = async (url) => {
-      if (url.includes("/transit/StopMonitoring")) {
-        requestCount++;
-      }
-      return createMockFetch({ etd: null, bsa: bsaFixture, sf511: sf511Fixture })(url);
+      if (url.includes("/transit/StopMonitoring")) requestTimes.push(fakeNow);
+      return createMockFetch(fixtures)(url);
     };
 
     mockTimers = createFakeTimers();
     fakeNow = 0;
     const nowImpl = () => new Date(fakeNow);
 
-    // Budget of 4 per hour for this test
     poller = createPoller({
       fetchImpl: countingFetch,
       setTimeoutImpl: mockTimers.setTimeoutImpl,
       clearTimeoutImpl: mockTimers.clearTimeoutImpl,
       nowImpl,
-      getConfig: createBudgetTestConfig(4),
+      getConfig: async () => ({
+        bartApiKey: "",
+        api511Key: "TEST_511_KEY",
+        bart: { stations: [] },
+        ferry: { operator: "SB", stops: ["7206"] },
+        bus: { operator: "AC", stops: ["57727", "57780"], lines: ["O"] },
+        budget511PerHour: 4,
+      }),
     });
 
     await poller.start();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(requestTimes.length, 3);
 
-    // Initial fetch: 1 ferry + 1 bus = 2 requests
-    assert.equal(requestCount, 2);
+    // Three stops share a budget of four. Only one request is allowed at 45m.
+    fakeNow += 45 * 60 * 1000;
+    await mockTimers.advance(45 * 60 * 1000);
+    assert.equal(requestTimes.length, 4);
 
-    // Advance 30 min, trigger poll -> 2 more requests (total 4)
+    // The initial three requests expire at 90m, allowing three more.
+    fakeNow += 45 * 60 * 1000;
+    await mockTimers.advance(45 * 60 * 1000);
+    assert.equal(requestTimes.length, 7);
+
+    // Reach two hours; the next scheduled cycle is at 135m.
     fakeNow += 30 * 60 * 1000;
     await mockTimers.advance(30 * 60 * 1000);
-    assert.equal(requestCount, 4);
+    assert.equal(requestTimes.length, 7);
 
-    // Advance another 30 min (1 hour total), budget exhausted -> no more requests
-    fakeNow += 30 * 60 * 1000;
-    await mockTimers.advance(30 * 60 * 1000);
-    // At 1 hour, first requests are exactly at the window edge
-    // Budget allows up to 4 per rolling hour, so total could be 4-6 depending on timing
-    assert.ok(requestCount >= 4 && requestCount <= 6);
-
-    // Advance another 31 min (1 hour + 1 min), first requests age out -> more allowed
-    fakeNow += 31 * 60 * 1000;
-    await mockTimers.advance(31 * 60 * 1000);
-    // Should allow more requests as old ones expire
-    assert.ok(requestCount >= 6);
-
-    // Advance to 2 hours total
-    fakeNow += 60 * 60 * 1000;
-    await mockTimers.advance(60 * 60 * 1000);
-    // Should still respect budget of 4 per rolling hour
-    assert.ok(requestCount <= 12); // At most 4 per hour * 3 hours = 12
+    // Request counts only increase at request boundaries, so checking every
+    // window ending at a request proves the maximum over every rolling hour.
+    for (const end of requestTimes) {
+      const count = requestTimes.filter((ts) => ts > end - 3_600_000 && ts <= end).length;
+      assert.ok(count <= 4, `${count} requests in rolling hour ending at ${end}`);
+    }
   });
 
   test("poller handles 511 fetch failure gracefully", async () => {
@@ -533,7 +532,7 @@ describe("511 poller with budget", () => {
           throw new Error("511 network error");
         }
       }
-      return createMockFetch({ etd: null, bsa: await loadFixture("bart-advisory-normal.json"), sf511: await loadFixture("sf511-ferry-normal.json") })(url);
+      return createMockFetch({ etd: null, bsa: await loadFixture("bart-advisory-normal.json"), sf511: await loadFixture("sf511-stopmonitoring-recorded.json") })(url);
     };
 
     mockTimers = createFakeTimers();

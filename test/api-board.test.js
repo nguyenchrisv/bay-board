@@ -13,7 +13,7 @@ const FIXTURE_DIR = join(__dirname, "fixtures");
 
 async function loadFixture(name) {
   const content = await readFile(join(FIXTURE_DIR, name), "utf-8");
-  return JSON.parse(content);
+  return JSON.parse(content.replace(/^\uFEFF/, ""));
 }
 
 function createTestConfig() {
@@ -115,7 +115,7 @@ describe("API /api/board endpoints", () => {
     // Create a test poller with fake fetch/timers
     const etdFixture = await loadFixture("bart-normal.json");
     const bsaFixture = await loadFixture("bart-advisory-normal.json");
-    const sf511Fixture = await loadFixture("sf511-ferry-normal.json");
+    const sf511Fixture = await loadFixture("sf511-stopmonitoring-recorded.json");
     mockTimers = createFakeTimers();
 
     const testPoller = createPoller({
