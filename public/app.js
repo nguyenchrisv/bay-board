@@ -6,6 +6,7 @@ import {
   formatMinutes,
   getAccessibleLabel,
   diffStrings,
+  formatDestination,
   createSplitFlapCell,
   createLineChipCell,
 } from "./split-flap.js";
@@ -100,17 +101,18 @@ function renderDepartures(boardEl, data, mode) {
     lineChipCell.prepend(srSpan);
     tr.appendChild(lineChipCell);
 
-    // Destination - use split-flap if changed
+    // Destination - capped/padded to a uniform 12-tile grid so long names
+    // never overflow into the MIN column (issue #6)
     const oldDest = oldDep.destination || "";
-    const newDest = dep.destination || "";
+    const newDest = formatDestination(dep.destination);
     const destChanges = diffStrings(oldDest, newDest);
-    tr.appendChild(createSplitFlapCell(newDest, destChanges));
+    tr.appendChild(createSplitFlapCell(newDest, destChanges, "destination-cell"));
 
     // Minutes - use split-flap if changed
     const oldMin = formatMinutes(oldDep.minutes);
     const newMin = formatMinutes(dep.minutes);
     const minChanges = diffStrings(oldMin, newMin);
-    const minCell = createSplitFlapCell(newMin, minChanges);
+    const minCell = createSplitFlapCell(newMin, minChanges, "minutes-cell");
     if (newMin === "NOW") {
       minCell.classList.add("boarding");
     }
@@ -120,7 +122,7 @@ function renderDepartures(boardEl, data, mode) {
     const oldPlat = oldDep.platform || oldDep.remarks || "";
     const newPlat = dep.platform || dep.remarks || "";
     const platChanges = diffStrings(oldPlat, newPlat);
-    tr.appendChild(createSplitFlapCell(newPlat, platChanges));
+    tr.appendChild(createSplitFlapCell(newPlat, platChanges, "platform-cell"));
 
     tbody.appendChild(tr);
   }
@@ -147,9 +149,10 @@ function updateBoard(boardEl, data, mode) {
 
   if (data.stop) stopNameEl.textContent = data.stop;
 
-  // Handle unconfigured boards (ferry/bus) - show COMING SOON, no stale badge
+  // Handle unconfigured boards (ferry/bus) - show COMING SOON, no stale badge.
+  // Title is the mode name, never a "not configured" placeholder (issue #6).
   if (data.unconfigured) {
-    stopNameEl.textContent = data.stop || (mode === "ferry" ? "FERRY" : "BUS");
+    stopNameEl.textContent = mode === "ferry" ? "FERRY" : "BUS";
     const comingSoon = mode === "ferry" ? "FERRY \u00B7 COMING SOON" : "BUS \u00B7 COMING SOON";
     const tbody = boardEl.querySelector(".departures tbody");
     if (tbody) {

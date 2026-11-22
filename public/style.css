@@ -243,32 +243,59 @@ body {
   background-color: var(--paper);
 }
 
-/* Column widths: LINE 12%, DESTINATION ~55%, MIN 13%, PLATFORM 20% */
+/* Column widths under table-layout: fixed (issue #6). min-width is ignored
+   in fixed layout, so columns get plain widths sized to their content:
+   chip ~36px, "NOW" tiles ~35px, "PLAT" header ~40px. */
 .departures th:nth-child(1),
 .departures td:nth-child(1) {
-  width: 12%;
-  min-width: 60px;
+  width: 18%;
 }
 
 .departures th:nth-child(2),
 .departures td:nth-child(2) {
-  width: 55%;
+  width: 51%;
 }
 
 .departures th:nth-child(3),
 .departures td:nth-child(3) {
-  width: 13%;
-  min-width: 50px;
+  width: 14%;
   text-align: right;
 }
 
 .departures th:nth-child(4),
 .departures td:nth-child(4) {
-  width: 20%;
-  min-width: 60px;
+  width: 17%;
 }
 
-/* Chip column: prevent overflow into destination on narrow screens */
+/* Below 1280px the three-column grid makes boards narrow (276px at the
+   900px breakpoint), so cells go compact: tighter padding and column
+   widths that still fit chip, "NOW", and the PLAT header. */
+@media (max-width: 1279px) {
+  .departures th,
+  .departures td {
+    padding: 8px 6px;
+  }
+  .departures th:nth-child(1),
+  .departures td:nth-child(1) {
+    width: 18.5%;
+  }
+  .departures th:nth-child(2),
+  .departures td:nth-child(2) {
+    width: 50.5%;
+  }
+  .departures th:nth-child(3),
+  .departures td:nth-child(3) {
+    width: 15.5%;
+  }
+  .departures th:nth-child(4),
+  .departures td:nth-child(4) {
+    width: 15.5%;
+  }
+}
+
+/* Chip column: chips show a <=3 char label (see chipLabel) so they fit the
+   LINE column at desktop and phone widths; the full "Green line" name stays
+   in the aria-label. */
 .line-chip-cell {
   white-space: nowrap;
   overflow: hidden;
@@ -277,25 +304,31 @@ body {
 
 .line-chip {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 2px;
   font-weight: 700;
   font-size: 0.75rem;
   letter-spacing: 0.04em;
   color: var(--ink);
-  min-width: 48px;
+  max-width: 100%;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Destination cell with split-flap: max ~12 chars */
-.destination-cell {
-  max-width: 12ch;
-  overflow: hidden;
-  white-space: nowrap;
+/* Compact chip below 1280px. Declared after the base .line-chip rule so
+   these win the cascade (the compact column media query above comes first). */
+@media (max-width: 1279px) {
+  .line-chip {
+    font-size: 0.7rem;
+    padding: 2px 4px;
+  }
 }
+
+/* Destination cell: content is capped/padded to exactly 12 tiles in JS
+   (formatDestination), so rows form a uniform tile grid that never
+   overflows into the MIN column. */
 
 .minutes-cell.boarding {
   color: var(--ok);
@@ -330,6 +363,7 @@ body {
 
 .split-flap-container {
   display: flex;
+  width: 100%;
   gap: 2px;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: 700;
@@ -339,18 +373,20 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Tiles shrink to fit their cell instead of overflowing into the next
+   column (issue #6). min-width: 0 lets flex distribute the shrink. */
 .split-flap-tile {
   position: relative;
   display: inline-flex;
   flex-direction: column;
-  width: 1.2em;
+  flex: 0 1 1.2em;
+  min-width: 0;
   height: var(--tile-h);
   perspective: 100px;
   background-color: var(--flap);
   border: 1px solid var(--flap-edge);
   border-radius: 2px;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
 .split-flap-half {
