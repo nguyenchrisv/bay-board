@@ -143,7 +143,6 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  container-type: inline-size;
 }
 
 .board[hidden] {
