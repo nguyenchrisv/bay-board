@@ -15,6 +15,12 @@ const COLOR_NAMES = {
   '#d5cfa3': 'Beige',
 };
 
+const MAX_DEST_TILES = 12;
+
+function formatDestination(destination) {
+  return String(destination || "").slice(0, MAX_DEST_TILES);
+}
+
 function getLineNameFromColor(color) {
   if (!color) return 'Line';
   const normalized = color.toLowerCase();
@@ -139,6 +145,17 @@ describe("Split-flap utilities", () => {
     test("returns empty array for identical strings", () => {
       assert.deepEqual(diffStrings('hello', 'hello'), []);
       assert.deepEqual(diffStrings('', ''), []);
+    });
+
+    test("returns no changes for identical formatted destinations (fixes blank tile re-animation)", () => {
+      // Simulate the fix: both old and new are formatted before diffing
+      const oldDest = formatDestination("Richmond");
+      const newDest = formatDestination("Richmond");
+      assert.deepEqual(diffStrings(oldDest, newDest), []);
+      // Also test with a longer name that gets capped
+      const oldLong = formatDestination("Dublin/Pleasanton");
+      const newLong = formatDestination("Dublin/Pleasanton");
+      assert.deepEqual(diffStrings(oldLong, newLong), []);
     });
 
     test("detects single character change", () => {

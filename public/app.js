@@ -6,6 +6,7 @@ import {
   formatMinutes,
   getAccessibleLabel,
   diffStrings,
+  formatDestination,
   createSplitFlapCell,
   createLineChipCell,
 } from "./split-flap.js";
@@ -28,6 +29,13 @@ const previousDepartures = {
   ferry: [],
   bus: [],
 };
+
+// Destination tile cap per mode: 12 tiles while the DESTINATION cell is
+// wide enough to show them at >=12px (>= 155px content with 1px gaps —
+// same threshold as the CSS --tile formula); below that, 10 tiles so the
+// tiles stay readable instead of shrinking to nothing.
+const DEST_CAP_THRESHOLD_PX = 155;
+const destCaps = { bart: 12, ferry: 12, bus: 12 };
 
 // Track configured modes to avoid stale badge on unconfigured
 const configuredModes = new Set(Object.keys(boards).filter((mode) => {
@@ -64,7 +72,20 @@ async function fetchBoard() {
   }
 }
 
-function renderDepartures(boardEl, data, mode) {
+// Measure the rendered DESTINATION cell content width and derive the cap
+// (12 or 10) with the same math as the CSS tile-size formula. Returns null
+// when no cell is rendered (empty board).
+function measureDestCap(boardEl) {
+  const cell = boardEl.querySelector(".departures td.destination-cell");
+  if (!cell) return null;
+  const style = window.getComputedStyle(cell);
+  const pad = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+  const width = cell.clientWidth - pad;
+  if (!Number.isFinite(width) || width <= 0) return null;
+  return width >= DEST_CAP_THRESHOLD_PX ? 12 : 10;
+}
+
+function renderDepartures(boardEl, data, mode, capOverride) {
   const tbody = boardEl.querySelector(".departures tbody");
   if (!tbody) return;
 
@@ -81,6 +102,7 @@ function renderDepartures(boardEl, data, mode) {
     return;
   }
 
+  const cap = capOverride ?? destCaps[mode] ?? 12;
   const newDepartures = data.departures;
   const oldDepartures = previousDepartures[mode] || [];
 
@@ -100,17 +122,20 @@ function renderDepartures(boardEl, data, mode) {
     lineChipCell.prepend(srSpan);
     tr.appendChild(lineChipCell);
 
-    // Destination - use split-flap if changed
-    const oldDest = oldDep.destination || "";
-    const newDest = dep.destination || "";
+    // Destination - capped to the current tile cap (12, or 10 on narrow
+    // cells) so long names never overflow into the MIN column (issue #6).
+    // Format both sides so diff compares like-for-like values and blank
+    // tiles don't re-animate on poll.
+    const oldDest = formatDestination(oldDep.destination, cap);
+    const newDest = formatDestination(dep.destination, cap);
     const destChanges = diffStrings(oldDest, newDest);
-    tr.appendChild(createSplitFlapCell(newDest, destChanges));
+    tr.appendChild(createSplitFlapCell(newDest, destChanges, "destination-cell", cap));
 
     // Minutes - use split-flap if changed
     const oldMin = formatMinutes(oldDep.minutes);
     const newMin = formatMinutes(dep.minutes);
     const minChanges = diffStrings(oldMin, newMin);
-    const minCell = createSplitFlapCell(newMin, minChanges);
+    const minCell = createSplitFlapCell(newMin, minChanges, "minutes-cell");
     if (newMin === "NOW") {
       minCell.classList.add("boarding");
     }
@@ -120,10 +145,23 @@ function renderDepartures(boardEl, data, mode) {
     const oldPlat = oldDep.platform || oldDep.remarks || "";
     const newPlat = dep.platform || dep.remarks || "";
     const platChanges = diffStrings(oldPlat, newPlat);
-    tr.appendChild(createSplitFlapCell(newPlat, platChanges));
+    tr.appendChild(createSplitFlapCell(newPlat, platChanges, "platform-cell"));
 
     tbody.appendChild(tr);
   }
+
+  // After rendering, sync the cap with the real cell width: if the
+  // measured cap differs from the one used, re-render once with it. The
+  // override guard keeps this to a single extra pass.
+  if (capOverride === undefined) {
+    const measured = measureDestCap(boardEl);
+    if (measured && measured !== cap) {
+      destCaps[mode] = measured;
+      renderDepartures(boardEl, data, mode, measured);
+      return;
+    }
+  }
+  destCaps[mode] = cap;
 
   // Update previous departures for next diff
   previousDepartures[mode] = newDepartures.map((d) => ({
@@ -147,9 +185,10 @@ function updateBoard(boardEl, data, mode) {
 
   if (data.stop) stopNameEl.textContent = data.stop;
 
-  // Handle unconfigured boards (ferry/bus) - show COMING SOON, no stale badge
+  // Handle unconfigured boards (ferry/bus) - show COMING SOON, no stale badge.
+  // Title is the mode name, never a "not configured" placeholder (issue #6).
   if (data.unconfigured) {
-    stopNameEl.textContent = data.stop || (mode === "ferry" ? "FERRY" : "BUS");
+    stopNameEl.textContent = mode === "ferry" ? "FERRY" : "BUS";
     const comingSoon = mode === "ferry" ? "FERRY \u00B7 COMING SOON" : "BUS \u00B7 COMING SOON";
     const tbody = boardEl.querySelector(".departures tbody");
     if (tbody) {
