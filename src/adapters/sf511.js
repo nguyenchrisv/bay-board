@@ -93,10 +93,12 @@ function normalizeStopMonitoring(rawJson, operator, stopCode, allowedLines = [],
     const color = getOperatorColor(operator);
 
     departures.push({
-      line: lineName,
+      // Use LineRef (short code) for the chip; PublishedLineName only as fallback
+      line: lineRef || lineName,
       destination: journey.DestinationName || "",
       minutes,
-      platform: call.StopPointRef || "",
+      // No real platform data in SIRI StopMonitoring for ferry/bus — keep empty
+      platform: "",
       color,
       remarks: "",
     });
