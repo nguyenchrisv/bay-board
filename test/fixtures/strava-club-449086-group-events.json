@@ -1,0 +1,27 @@
+[
+ {
+  "id": 3553693934443874876,
+  "resource_state": 2,
+  "title": "#PhixedKingsExpeditions: After Cranksgiving!",
+  "description": "LAST SUNDAY OF THE MONTH. HOPEFULLY IT WONT BE AS RAINY! ",
+  "club_id": 449086,
+  "club": {
+   "id": 449086,
+   "resource_state": 1,
+   "name": "Phixed Kings Expeditions"
+  },
+  "activity_type": "Run",
+  "route_id": null,
+  "route": null,
+  "women_only": false,
+  "private": false,
+  "skill_levels": null,
+  "terrain": null,
+  "upcoming_occurrences": [
+   "2026-11-29T18:00:00Z"
+  ],
+  "zone": "America/Los_Angeles",
+  "address": "289 Mare Island Way Vallejo CA 94590 United States",
+  "joined": false
+ }
+]

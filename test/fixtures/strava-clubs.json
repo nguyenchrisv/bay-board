@@ -1,0 +1,126 @@
+[
+ {
+  "id": 1240487,
+  "resource_state": 2,
+  "name": "HGB Thursdays",
+  "cover_photo": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/1240487/30919543/2/large.jpg",
+  "cover_photo_small": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/1240487/30919543/2/small.jpg",
+  "activity_types": [
+   "Handcycle",
+   "EBikeRide",
+   "VirtualRide",
+   "Velomobile",
+   "Ride"
+  ],
+  "activity_types_icon": "sports_bike_normal",
+  "dimensions": [
+   "distance",
+   "num_activities",
+   "best_activities_distance",
+   "velocity",
+   "elev_gain",
+   "moving_time"
+  ],
+  "sport_type": "cycling",
+  "localized_sport_type": "Cycling",
+  "country": "United States",
+  "private": false,
+  "member_count": 2019,
+  "featured": false,
+  "verified": true,
+  "url": "HGBThursdays"
+ },
+ {
+  "id": 146385,
+  "resource_state": 2,
+  "name": "Alameda Bicycle Group Rides",
+  "cover_photo": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/146385/20267014/6/large.jpg",
+  "cover_photo_small": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/146385/20267014/6/small.jpg",
+  "activity_types": [
+   "Handcycle",
+   "EBikeRide",
+   "VirtualRide",
+   "Velomobile",
+   "Ride"
+  ],
+  "activity_types_icon": "sports_bike_normal",
+  "dimensions": [
+   "distance",
+   "num_activities",
+   "best_activities_distance",
+   "velocity",
+   "elev_gain",
+   "moving_time"
+  ],
+  "sport_type": "cycling",
+  "localized_sport_type": "Cycling",
+  "country": "United States",
+  "private": false,
+  "member_count": 545,
+  "featured": false,
+  "verified": false,
+  "url": "AlamedaBicycleGroupRides"
+ },
+ {
+  "id": 449086,
+  "resource_state": 2,
+  "name": "Phixed Kings Expeditions",
+  "cover_photo": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/449086/9177317/12/large.jpg",
+  "cover_photo_small": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/449086/9177317/12/small.jpg",
+  "activity_types": [
+   "Handcycle",
+   "EBikeRide",
+   "VirtualRide",
+   "Velomobile",
+   "Ride"
+  ],
+  "activity_types_icon": "sports_bike_normal",
+  "dimensions": [
+   "distance",
+   "num_activities",
+   "best_activities_distance",
+   "velocity",
+   "elev_gain",
+   "moving_time"
+  ],
+  "sport_type": "cycling",
+  "localized_sport_type": "Cycling",
+  "country": "United States",
+  "private": false,
+  "member_count": 604,
+  "featured": false,
+  "verified": false,
+  "url": "PhixedKingsExpeditions"
+ },
+ {
+  "id": 1206675,
+  "resource_state": 2,
+  "name": "SF Bike and Brew",
+  "cover_photo": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/1206675/30367717/2/large.jpg",
+  "cover_photo_small": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/1206675/30367717/2/small.jpg",
+  "activity_types": [
+   "Handcycle",
+   "EBikeRide",
+   "VirtualRide",
+   "Velomobile",
+   "Ride"
+  ],
+  "activity_types_icon": "sports_bike_normal",
+  "dimensions": [
+   "distance",
+   "num_activities",
+   "best_activities_distance",
+   "velocity",
+   "elev_gain",
+   "moving_time"
+  ],
+  "sport_type": "cycling",
+  "localized_sport_type": "Cycling",
+  "country": "United States",
+  "private": false,
+  "member_count": 1649,
+  "featured": false,
+  "verified": false,
+  "url": "sfbikeandbrew"
+ }
+]
