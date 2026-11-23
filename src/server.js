@@ -46,6 +46,25 @@ function resetPoller() {
   }
 }
 
+function getBoardsByMode(cache, mode) {
+  const boards = [];
+  for (const [key, board] of cache) {
+    if (key.startsWith(`${mode}:`)) {
+      boards.push(board);
+    }
+  }
+  return boards;
+}
+
+function getFirstBoardByMode(cache, mode) {
+  for (const [key, board] of cache) {
+    if (key.startsWith(`${mode}:`)) {
+      return board;
+    }
+  }
+  return null;
+}
+
 export async function handleRequest(req, res) {
   let pathname;
   try {
@@ -70,52 +89,88 @@ export async function handleRequest(req, res) {
   }
 
   // API board endpoints
-  if (pathname === "/api/board" || pathname === "/api/board/bart") {
+  if (pathname === "/api/board" || pathname.startsWith("/api/board/")) {
     try {
       const poller = await getPoller();
       const cache = poller.getCache();
+      const config = await getConfig();
       const boards = {};
 
-      if (pathname === "/api/board") {
-        // Return all modes
-        for (const [station, board] of cache) {
-          boards.bart = board; // Only BART for now
-        }
-        // Add ferry and bus as unconfigured (no adapter implemented yet)
-        boards.ferry = {
-          mode: "ferry",
-          stop: "Not configured",
-          updatedAt: null,
-          stale: false,
-          unconfigured: true,
-          departures: [],
-        };
-        boards.bus = {
-          mode: "bus",
-          stop: "Not configured",
-          updatedAt: null,
-          stale: false,
-          unconfigured: true,
-          departures: [],
-        };
-      } else {
-        // Single mode: bart
-        const config = await getConfig();
-        const stations = config.bart?.stations || [];
-        for (const station of stations) {
-          const board = cache.get(station);
-          if (board) {
-            boards.bart = board;
-            break;
-          }
-        }
-        if (!boards.bart && stations.length > 0) {
+      const mode = pathname === "/api/board" ? "all" : pathname.split("/api/board/")[1];
+
+      // Validate mode
+      const validModes = ["bart", "ferry", "bus"];
+      if (mode !== "all" && !validModes.includes(mode)) {
+        res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Not found" }));
+        return;
+      }
+
+      if (mode === "all" || mode === "bart") {
+        const bartBoards = getBoardsByMode(cache, "bart");
+        if (bartBoards.length > 0) {
+          boards.bart = bartBoards[0]; // Single station for now
+        } else if (config.bart?.stations?.length > 0) {
           boards.bart = {
             mode: "bart",
-            stop: stations[0],
+            stop: config.bart.stations[0],
             updatedAt: null,
             stale: true,
             error: "No data yet",
+            departures: [],
+          };
+        }
+      }
+
+      if (mode === "all" || mode === "ferry") {
+        const ferryBoards = getBoardsByMode(cache, "ferry");
+        if (ferryBoards.length > 0) {
+          // For /api/board/ferry return first; for /api/board return all combined?
+          // Per architecture: each stop gets its own board. For now return first.
+          boards.ferry = ferryBoards[0];
+        } else if (config.ferry?.stops?.length > 0) {
+          boards.ferry = {
+            mode: "ferry",
+            stop: "",
+            updatedAt: null,
+            stale: true,
+            error: "No data yet",
+            departures: [],
+            unconfigured: false,
+          };
+        } else {
+          boards.ferry = {
+            mode: "ferry",
+            stop: "",
+            updatedAt: null,
+            stale: false,
+            unconfigured: true,
+            departures: [],
+          };
+        }
+      }
+
+      if (mode === "all" || mode === "bus") {
+        const busBoards = getBoardsByMode(cache, "bus");
+        if (busBoards.length > 0) {
+          boards.bus = busBoards[0];
+        } else if (config.bus?.stops?.length > 0) {
+          boards.bus = {
+            mode: "bus",
+            stop: "",
+            updatedAt: null,
+            stale: true,
+            error: "No data yet",
+            departures: [],
+            unconfigured: false,
+          };
+        } else {
+          boards.bus = {
+            mode: "bus",
+            stop: "",
+            updatedAt: null,
+            stale: false,
+            unconfigured: true,
             departures: [],
           };
         }
@@ -131,13 +186,6 @@ export async function handleRequest(req, res) {
       }
       return;
     }
-  }
-
-  // Unknown board mode
-  if (pathname.startsWith("/api/board/")) {
-    res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ error: "Not found" }));
-    return;
   }
 
   // Static files
