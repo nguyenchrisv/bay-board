@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 // Regression tests for issue #6: destinations are capped at 12 split-flap
 // tiles and line chips use a short visual label. These import the real
 // module from public/ (it has no DOM calls at import time).
-import { formatDestination, chipLabel } from "../public/split-flap.js";
+import { formatDestination, chipLabel, abbreviateDestination } from "../public/split-flap.js";
 
 describe("formatDestination", () => {
   test("caps names longer than 12 tiles", () => {
@@ -38,6 +38,30 @@ describe("formatDestination", () => {
         assert.ok(formatDestination(input, cap).length <= cap);
       }
     }
+  });
+});
+
+describe("abbreviateDestination", () => {
+  test("drops redundant suffixes", () => {
+    // "Ferry Terminal" → "Ferry" (keep "Ferry", drop "Terminal")
+    assert.equal(abbreviateDestination("Harbor Bay Ferry Terminal"), "Harbor Bay Ferry");
+    assert.equal(abbreviateDestination("Salesforce Transit Center"), "Salesforce");
+    assert.equal(abbreviateDestination("Fruitvale BART"), "Fruitvale");
+  });
+
+  test("replaces with shorter canonical forms", () => {
+    assert.equal(abbreviateDestination("San Francisco Ferry Building"), "SF Ferry Bldg");
+    // "Ferry Terminal" → "Ferry" (keep "Ferry", drop "Terminal")
+    assert.equal(abbreviateDestination("San Francisco Ferry Terminal"), "SF Ferry");
+  });
+
+  test("collapses whitespace", () => {
+    assert.equal(abbreviateDestination("  Harbor Bay   Ferry Terminal  "), "Harbor Bay Ferry");
+  });
+
+  test("handles names with no substitutions", () => {
+    assert.equal(abbreviateDestination("Richmond"), "Richmond");
+    assert.equal(abbreviateDestination(""), "");
   });
 });
 

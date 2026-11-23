@@ -11,6 +11,22 @@ function formatDestination(destination, maxTiles = MAX_DEST_TILES) {
   return String(destination || "").slice(0, maxTiles);
 }
 
+// Abbreviate long destination names for ferry/bus so they fit the split-flap
+// cap sensibly. Conservative, well-known Bay Area substitutions only.
+function abbreviateDestination(destination) {
+  let s = String(destination || "");
+  // Replace with shorter canonical forms first
+  s = s.replace(/\bFerry Building\b/gi, "Ferry Bldg");
+  s = s.replace(/\bSan Francisco\b/gi, "SF");
+  // Drop redundant suffixes/phrases (after replacements)
+  s = s.replace(/\bFerry Terminal\b/gi, "Ferry"); // keep "Ferry", drop "Terminal"
+  s = s.replace(/\bTransit Center\b/gi, "");
+  s = s.replace(/\b BART\b/gi, "");
+  // Collapse whitespace
+  s = s.replace(/\s+/g, " ").trim();
+  return s;
+}
+
 // Short visual label for the line chip (e.g. "Yellow" -> "Yel"). The
 // accessible name ("Green line") is kept separately via aria-label.
 function chipLabel(line) {
@@ -169,6 +185,7 @@ export {
   getAccessibleLabel,
   diffStrings,
   formatDestination,
+  abbreviateDestination,
   chipLabel,
   createSplitFlapCell,
   createLineChipCell,

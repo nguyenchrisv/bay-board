@@ -7,6 +7,7 @@ import {
   getAccessibleLabel,
   diffStrings,
   formatDestination,
+  abbreviateDestination,
   createSplitFlapCell,
   createLineChipCell,
 } from "./split-flap.js";
@@ -126,8 +127,18 @@ function renderDepartures(boardEl, data, mode, capOverride) {
     // cells) so long names never overflow into the MIN column (issue #6).
     // Format both sides so diff compares like-for-like values and blank
     // tiles don't re-animate on poll.
-    const oldDest = formatDestination(oldDep.destination, cap);
-    const newDest = formatDestination(dep.destination, cap);
+    // For ferry/bus, abbreviate destination names first so they fit
+    // sensibly within the tile cap (e.g., "San Francisco Ferry Building"
+    // → "SF Ferry Bldg" → "SF Ferry Bld" at 12 tiles).
+    const isBart = mode === "bart";
+    const oldDest = formatDestination(
+      isBart ? oldDep.destination : abbreviateDestination(oldDep.destination),
+      cap
+    );
+    const newDest = formatDestination(
+      isBart ? dep.destination : abbreviateDestination(dep.destination),
+      cap
+    );
     const destChanges = diffStrings(oldDest, newDest);
     tr.appendChild(createSplitFlapCell(newDest, destChanges, "destination-cell", cap));
 

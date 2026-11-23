@@ -417,10 +417,13 @@ describe("511 poller with budget", () => {
     assert.equal(board.stale, false);
     assert.equal(board.error, null);
     // The recorded response has three N/JUDAH departures.
+    // LineRef ("N") is used for the chip instead of PublishedLineName ("JUDAH")
     assert.equal(board.departures.length, 3);
     for (const dep of board.departures) {
-      assert.equal(dep.line, "JUDAH");
+      assert.equal(dep.line, "N");
       assert.equal(dep.color, "#ff9933"); // AC Transit orange
+      // No real platform data in SIRI StopMonitoring for 511
+      assert.equal(dep.platform, "");
     }
   });
 
