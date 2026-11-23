@@ -17,6 +17,7 @@ const boards = {
   bart: document.querySelector('section.board[data-mode="bart"]'),
   ferry: document.querySelector('section.board[data-mode="ferry"]'),
   bus: document.querySelector('section.board[data-mode="bus"]'),
+  fitness: document.querySelector('section.board[data-mode="fitness"]'),
 };
 
 const tabs = document.querySelectorAll(".mode-tabs [role=\"tab\"]");

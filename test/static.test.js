@@ -30,6 +30,9 @@ describe("Static file serving", () => {
       assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
       const text = await res.text();
       assert.ok(text.includes("<title>Bay Board</title>"));
+      assert.ok(text.includes('data-mode="fitness"'));
+      assert.ok(text.includes('id="fitness-stats"'));
+      assert.ok(text.includes('id="group-rides-list"'));
     });
   });
 
@@ -50,6 +53,36 @@ describe("Static file serving", () => {
       assert.equal(res.headers.get("content-type"), "text/javascript; charset=utf-8");
       const text = await res.text();
       assert.ok(text.includes("Bay Board front-end"));
+    });
+  });
+
+  test("GET /fitness-card.js serves JavaScript with correct content type", async () => {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/fitness-card.js`);
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("content-type"), "text/javascript; charset=utf-8");
+      const text = await res.text();
+      assert.ok(text.includes("Fitness card frontend"));
+    });
+  });
+
+  test("GET /fitness-card-utils.js serves JavaScript with correct content type", async () => {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/fitness-card-utils.js`);
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("content-type"), "text/javascript; charset=utf-8");
+      const text = await res.text();
+      assert.ok(text.includes("Fitness card utilities"));
+    });
+  });
+
+  test("GET /split-flap.js serves JavaScript with correct content type", async () => {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/split-flap.js`);
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("content-type"), "text/javascript; charset=utf-8");
+      const text = await res.text();
+      assert.ok(text.includes("Split-flap utilities"));
     });
   });
 

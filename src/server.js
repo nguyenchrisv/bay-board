@@ -15,6 +15,7 @@ const VERSION = pkg.version;
 // Test overrides
 let testGetConfig = null;
 let testPoller = null;
+let testStravaData = null;
 
 export function setTestConfig(getConfig) {
   testGetConfig = getConfig;
@@ -24,9 +25,14 @@ export function setTestPoller(poller) {
   testPoller = poller;
 }
 
+export function setTestStravaData(data) {
+  testStravaData = data;
+}
+
 export function clearTestOverrides() {
   testGetConfig = null;
   testPoller = null;
+  testStravaData = null;
 }
 
 function getConfig() {
@@ -178,6 +184,36 @@ export async function handleRequest(req, res) {
 
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(boards));
+      return;
+    } catch (err) {
+      if (!res.writableEnded) {
+        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
+      return;
+    }
+  }
+
+  // API Strava endpoint
+  if (pathname === "/api/strava") {
+    try {
+      if (testStravaData) {
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify(testStravaData));
+        return;
+      }
+
+      // In production, this would call the Strava backend service
+      // For now, return empty structure
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({
+        athlete: null,
+        stats: null,
+        activities: [],
+        clubs: [],
+        groupEvents: {},
+        updatedAt: new Date().toISOString(),
+      }));
       return;
     } catch (err) {
       if (!res.writableEnded) {
