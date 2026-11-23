@@ -1,0 +1,27 @@
+[
+ {
+  "id": 7000,
+  "resource_state": 2,
+  "title": "Test group ride 1",
+  "description": "Test description.",
+  "club_id": 9003,
+  "club": {
+   "id": 9003,
+   "resource_state": 1,
+   "name": "Test Club C"
+  },
+  "activity_type": "Run",
+  "route_id": null,
+  "route": null,
+  "women_only": false,
+  "private": false,
+  "skill_levels": null,
+  "terrain": null,
+  "upcoming_occurrences": [
+   "2026-11-29T18:00:00Z"
+  ],
+  "zone": "America/Los_Angeles",
+  "address": "1 Test St, Testville, CA 94000",
+  "joined": false
+ }
+]
