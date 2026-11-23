@@ -1,10 +1,10 @@
 [
  {
-  "id": 1240487,
+  "id": 9001,
   "resource_state": 2,
-  "name": "HGB Thursdays",
-  "cover_photo": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/1240487/30919543/2/large.jpg",
-  "cover_photo_small": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/1240487/30919543/2/small.jpg",
+  "name": "Test Club A",
+  "cover_photo": "https://example.invalid/club.png",
+  "cover_photo_small": "https://example.invalid/club.png",
   "activity_types": [
    "Handcycle",
    "EBikeRide",
@@ -28,14 +28,14 @@
   "member_count": 2019,
   "featured": false,
   "verified": true,
-  "url": "HGBThursdays"
+  "url": "test-club-a"
  },
  {
-  "id": 146385,
+  "id": 9002,
   "resource_state": 2,
-  "name": "Alameda Bicycle Group Rides",
-  "cover_photo": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/146385/20267014/6/large.jpg",
-  "cover_photo_small": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/146385/20267014/6/small.jpg",
+  "name": "Test Club B",
+  "cover_photo": "https://example.invalid/club.png",
+  "cover_photo_small": "https://example.invalid/club.png",
   "activity_types": [
    "Handcycle",
    "EBikeRide",
@@ -59,14 +59,14 @@
   "member_count": 545,
   "featured": false,
   "verified": false,
-  "url": "AlamedaBicycleGroupRides"
+  "url": "test-club-b"
  },
  {
-  "id": 449086,
+  "id": 9003,
   "resource_state": 2,
-  "name": "Phixed Kings Expeditions",
-  "cover_photo": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/449086/9177317/12/large.jpg",
-  "cover_photo_small": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/449086/9177317/12/small.jpg",
+  "name": "Test Club C",
+  "cover_photo": "https://example.invalid/club.png",
+  "cover_photo_small": "https://example.invalid/club.png",
   "activity_types": [
    "Handcycle",
    "EBikeRide",
@@ -90,14 +90,14 @@
   "member_count": 604,
   "featured": false,
   "verified": false,
-  "url": "PhixedKingsExpeditions"
+  "url": "test-club-c"
  },
  {
-  "id": 1206675,
+  "id": 9004,
   "resource_state": 2,
-  "name": "SF Bike and Brew",
-  "cover_photo": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/1206675/30367717/2/large.jpg",
-  "cover_photo_small": "https://dgalywyr863hv.cloudfront.net/pictures/clubs/1206675/30367717/2/small.jpg",
+  "name": "Test Club D",
+  "cover_photo": "https://example.invalid/club.png",
+  "cover_photo_small": "https://example.invalid/club.png",
   "activity_types": [
    "Handcycle",
    "EBikeRide",
@@ -121,6 +121,6 @@
   "member_count": 1649,
   "featured": false,
   "verified": false,
-  "url": "sfbikeandbrew"
+  "url": "test-club-d"
  }
 ]

@@ -1,14 +1,14 @@
 [
  {
-  "id": 3553693934443874876,
+  "id": 7000,
   "resource_state": 2,
-  "title": "#PhixedKingsExpeditions: After Cranksgiving!",
-  "description": "LAST SUNDAY OF THE MONTH. HOPEFULLY IT WONT BE AS RAINY! ",
-  "club_id": 449086,
+  "title": "Test group ride 1",
+  "description": "Test description.",
+  "club_id": 9003,
   "club": {
-   "id": 449086,
+   "id": 9003,
    "resource_state": 1,
-   "name": "Phixed Kings Expeditions"
+   "name": "Test Club C"
   },
   "activity_type": "Run",
   "route_id": null,
@@ -21,7 +21,7 @@
    "2026-11-29T18:00:00Z"
   ],
   "zone": "America/Los_Angeles",
-  "address": "289 Mare Island Way Vallejo CA 94590 United States",
+  "address": "1 Test St, Testville, CA 94000",
   "joined": false
  }
 ]
