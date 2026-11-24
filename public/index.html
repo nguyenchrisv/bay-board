@@ -19,7 +19,8 @@
     <button role="tab" aria-selected="false" data-mode="fitness">Fitness</button>
   </nav>
   <main class="boards">
-    <section class="board" data-mode="bart" aria-label="BART departures">
+    <div class="transit-boards">
+      <section class="board" data-mode="bart" aria-label="BART departures">
       <div class="board-header">
         <svg class="pictogram" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 17h16M4 17v-3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M7 17v-3a2 2 0 0 1 4 0v3M17 17v-3"/></svg>
         <span class="stop-name">FRUITVALE</span>
@@ -82,7 +83,8 @@
         </tbody>
       </table>
     </section>
-    <section class="board" data-mode="fitness" aria-label="Fitness progress and group rides">
+  </div>
+  <section class="board" data-mode="fitness" aria-label="Fitness progress and group rides">
       <div class="board-header">
         <svg class="pictogram" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
         <span class="stop-name">FITNESS</span>

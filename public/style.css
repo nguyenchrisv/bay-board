@@ -108,30 +108,40 @@ body {
 /* Boards container */
 .boards {
   display: grid;
+  grid-template-rows: auto auto;
   gap: 24px;
   padding: 24px;
   max-width: 1400px;
   margin: 0 auto;
 }
 
+.transit-boards {
+  display: grid;
+  gap: 24px;
+}
+
 @media (min-width: 900px) {
-  .boards {
-    grid-template-columns: repeat(4, 1fr);
+  .transit-boards {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (min-width: 600px) and (max-width: 899px) {
-  .boards {
+  .transit-boards {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 599px) {
-  .boards {
+  .transit-boards {
     grid-template-columns: 1fr;
   }
-  .mode-tabs[hidden] {
-    display: flex;
+}
+
+/* Fitness board spans full width on desktop, stacks on mobile */
+@media (min-width: 900px) {
+  .board[data-mode="fitness"] {
+    width: 100%;
   }
 }
 
