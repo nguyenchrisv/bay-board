@@ -16,9 +16,11 @@
     <button role="tab" aria-selected="true" data-mode="bart">BART</button>
     <button role="tab" aria-selected="false" data-mode="ferry">Ferry</button>
     <button role="tab" aria-selected="false" data-mode="bus">Bus</button>
+    <button role="tab" aria-selected="false" data-mode="fitness">Fitness</button>
   </nav>
   <main class="boards">
-    <section class="board" data-mode="bart" aria-label="BART departures">
+    <div class="transit-boards">
+      <section class="board" data-mode="bart" aria-label="BART departures">
       <div class="board-header">
         <svg class="pictogram" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 17h16M4 17v-3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3M7 17v-3a2 2 0 0 1 4 0v3M17 17v-3"/></svg>
         <span class="stop-name">FRUITVALE</span>
@@ -81,8 +83,36 @@
         </tbody>
       </table>
     </section>
+  </div>
+  <section class="board" data-mode="fitness" aria-label="Fitness progress and group rides">
+      <div class="board-header">
+        <svg class="pictogram" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <span class="stop-name">FITNESS</span>
+        <span class="updated" aria-live="polite">UPDATED --:--</span>
+        <span class="badge stale" hidden>STALE</span>
+      </div>
+      <div class="fitness-content">
+        <nav class="fitness-tabs" role="tablist" aria-label="Activity types">
+          <button role="tab" aria-selected="true" data-activity="Ride">RIDE</button>
+          <button role="tab" aria-selected="false" data-activity="Run">RUN</button>
+          <button role="tab" aria-selected="false" data-activity="Swim">SWIM</button>
+        </nav>
+        <div class="fitness-progress" role="region" aria-label="Weekly progress">
+          <h3 class="fitness-section-title">WEEKLY PROGRESS</h3>
+          <div class="fitness-stats-grid" id="fitness-stats"></div>
+          <div class="fitness-progress-bars" id="fitness-progress-bars"></div>
+        </div>
+        <div class="fitness-group-rides" role="region" aria-label="Upcoming group rides">
+          <h3 class="fitness-section-title">UPCOMING GROUP RIDES</h3>
+          <div class="group-rides-list" id="group-rides-list">
+            <div class="loading-row">Loading group rides…</div>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
   <script type="module" src="/split-flap.js"></script>
+  <script type="module" src="/fitness-card.js"></script>
   <script type="module" src="/app.js"></script>
 </body>
 </html>
