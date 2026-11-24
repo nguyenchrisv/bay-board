@@ -136,6 +136,9 @@ body {
   .transit-boards {
     grid-template-columns: 1fr;
   }
+  .mode-tabs[hidden] {
+    display: flex;
+  }
 }
 
 /* Fitness board spans full width on desktop, stacks on mobile */
