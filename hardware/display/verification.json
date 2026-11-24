@@ -1,0 +1,92 @@
+{
+  "units": "mm and mm^3",
+  "checks": {
+    "carrier_vs_case_mm3": 0.0,
+    "carrier_vs_aligned_lcd_mm3": 0.0,
+    "no_header_board_vs_case_mm3": 0.0,
+    "no_header_board_vs_carrier_mm3": 0.0,
+    "no_header_board_vs_aligned_lcd_mm3": 0.0,
+    "full_board_with_header_vs_carrier_mm3": 6.277503,
+    "heatsink_keepout_vs_carrier_mm3": 0.0,
+    "heatsink_metal_vs_no_header_board_mm3": 0.0,
+    "heatsink_metal_vs_case_mm3": 0.0,
+    "vent_slots_vs_hdmi_notch_mm3": 0.0,
+    "radxa_micro_hdmi_vertical_b_vs_case_mm3": 0.0,
+    "radxa_micro_hdmi_vertical_b_vs_carrier_mm3": 0.0,
+    "lcd_hdmi_vertical_b_vs_case_mm3": 0.0,
+    "lcd_hdmi_vertical_b_vs_carrier_mm3": 0.0,
+    "radxa_usb_c_host_up_down_vs_case_mm3": 0.0,
+    "radxa_usb_c_host_up_down_vs_carrier_mm3": 0.0,
+    "radxa_usb_c_power_up_down_vs_case_mm3": 0.0,
+    "radxa_usb_c_power_up_down_vs_carrier_mm3": 0.0,
+    "lcd_usb_c_up_down_vs_case_mm3": 0.0,
+    "lcd_usb_c_up_down_vs_carrier_mm3": 0.0
+  },
+  "measurements": {
+    "micro_hdmi_clearance_mm": 4.9702,
+    "lcd_lowest_component_clearance_mm": 2.5,
+    "modeled_heatsink_clearance_mm": 3.0,
+    "thermal_pad_allowance_over_soc_mm": 1.4,
+    "carrier_base_thickness_mm": 3.0,
+    "integrated_lcd_standoff_pad_height_mm": 3.0,
+    "board_spacer_height_mm": 8.0,
+    "carrier_vent_open_area_mm2": 534.85,
+    "independent_carrier_vent_slots": 6,
+    "insert_vent_open_area_mm2": 46.28,
+    "carrier_case_wall_relief_mm": [
+      1.1,
+      1.0
+    ],
+    "insert_outer_mm": [
+      40,
+      32,
+      2.5
+    ],
+    "insert_usb_cutout_mm": [
+      10.5,
+      4.6,
+      2.0
+    ],
+    "insert_case_position_xz_mm": [
+      77,
+      41
+    ]
+  },
+  "exports": [
+    {
+      "file": "radxa-zero-3w-carrier.step",
+      "solid_count": 1,
+      "valid": true,
+      "volume_mm3": 9498.358
+    },
+    {
+      "file": "usb-c-power-insert.step",
+      "solid_count": 1,
+      "valid": true,
+      "volume_mm3": 2874.242
+    }
+  ],
+  "design_candidate_not_for_fabrication": true,
+  "pdfs": [
+    {
+      "file": "radxa-zero-3w-carrier.pdf",
+      "pages": 1,
+      "expected_text_present": true,
+      "outside_page_words": [],
+      "page_points": [
+        841.68,
+        595.44
+      ]
+    },
+    {
+      "file": "usb-c-power-insert.pdf",
+      "pages": 1,
+      "expected_text_present": true,
+      "outside_page_words": [],
+      "page_points": [
+        841.68,
+        595.44
+      ]
+    }
+  ]
+}
