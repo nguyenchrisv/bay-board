@@ -94,6 +94,30 @@ export async function handleRequest(req, res) {
     return;
   }
 
+  // Config endpoint (for wall mode)
+  if (pathname === "/api/config") {
+    try {
+      const config = await getConfig();
+      // Return sanitized config (no API keys)
+      const sanitized = {
+        bart: config.bart ? { stations: config.bart.stations } : null,
+        ferry: config.ferry ? { stops: config.ferry.stops } : null,
+        bus: config.bus ? { stops: config.bus.stops } : null,
+        strava: config.strava ? { enabled: !!config.strava.clientId } : null,
+        wallRotationMs: config.wallRotationMs,
+      };
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(sanitized));
+      return;
+    } catch (err) {
+      if (!res.writableEnded) {
+        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
+      return;
+    }
+  }
+
   // API board endpoints
   if (pathname === "/api/board" || pathname.startsWith("/api/board/")) {
     try {
