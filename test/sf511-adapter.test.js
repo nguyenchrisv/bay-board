@@ -83,9 +83,11 @@ describe("511 adapter - recorded StopMonitoring response", () => {
     assert.equal(result.stop, "9th Ave & Irving St");
     assert.equal(result.departures.length, 3);
     assert.deepEqual(result.departures.map((dep) => dep.minutes), [6, 13, 21]);
-    assert.deepEqual(result.departures.map((dep) => dep.line), ["JUDAH", "JUDAH", "JUDAH"]);
+    // LineRef ("N") is used for the chip instead of PublishedLineName ("JUDAH")
+    assert.deepEqual(result.departures.map((dep) => dep.line), ["N", "N", "N"]);
     assert.equal(result.departures[0].destination, "Judah/La Playa/Ocean Beach");
-    assert.equal(result.departures[0].platform, "17999");
+    // No real platform data in SIRI StopMonitoring for 511
+    assert.equal(result.departures[0].platform, "");
   });
 
   it("filters the recorded response by LineRef", () => {
