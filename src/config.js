@@ -42,9 +42,13 @@ async function loadConfig() {
   const merged = { ...config };
   if (env.BART_API_KEY) merged.bartApiKey = env.BART_API_KEY;
   if (env.API_511_KEY) merged.api511Key = env.API_511_KEY;
+  if (env.POSEY_TUBE_URL) merged.poseyTubeUrl = env.POSEY_TUBE_URL;
+  if (env.POSEY_TUBE_TOKEN) merged.poseyTubeToken = env.POSEY_TUBE_TOKEN;
   // process.env takes highest precedence
   if (process.env.BART_API_KEY) merged.bartApiKey = process.env.BART_API_KEY;
   if (process.env.API_511_KEY) merged.api511Key = process.env.API_511_KEY;
+  if (process.env.POSEY_TUBE_URL) merged.poseyTubeUrl = process.env.POSEY_TUBE_URL;
+  if (process.env.POSEY_TUBE_TOKEN) merged.poseyTubeToken = process.env.POSEY_TUBE_TOKEN;
 
   return merged;
 }
