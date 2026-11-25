@@ -17,10 +17,7 @@ const VERSION = pkg.version;
 let testGetConfig = null;
 let testPoller = null;
 let testStravaData = null;
-<<<<<<< HEAD
 let testBoardData = null;
-=======
->>>>>>> 2203843 (fix: restore setTestStravaData export for Strava tests)
 let testPosey = null;
 
 function setTestConfig(getConfig) {
@@ -35,13 +32,10 @@ function setTestStravaData(data) {
   testStravaData = data;
 }
 
-<<<<<<< HEAD
-export function setTestBoardData(data) {
+function setTestBoardData(data) {
   testBoardData = data;
 }
 
-=======
->>>>>>> 2203843 (fix: restore setTestStravaData export for Strava tests)
 function setTestPosey(posey) {
   testPosey = posey;
 }
@@ -50,10 +44,7 @@ function clearTestOverrides() {
   testGetConfig = null;
   testPoller = null;
   testStravaData = null;
-<<<<<<< HEAD
   testBoardData = null;
-=======
->>>>>>> 2203843 (fix: restore setTestStravaData export for Strava tests)
   testPosey = null;
 }
 
@@ -121,7 +112,6 @@ export async function handleRequest(req, res) {
     return;
   }
 
-<<<<<<< HEAD
   // Config endpoint (for wall mode)
   if (pathname === "/api/config") {
     try {
@@ -136,38 +126,6 @@ export async function handleRequest(req, res) {
       };
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(sanitized));
-      return;
-    } catch (err) {
-      if (!res.writableEnded) {
-        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-        res.end(JSON.stringify({ error: "Internal server error" }));
-      }
-      return;
-    }
-  }
-
-=======
->>>>>>> 2203843 (fix: restore setTestStravaData export for Strava tests)
-  // API Strava endpoint
-  if (pathname === "/api/strava") {
-    try {
-      if (testStravaData) {
-        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-        res.end(JSON.stringify(testStravaData));
-        return;
-      }
-
-      // In production, this would call the Strava backend service
-      // For now, return empty structure
-      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({
-        athlete: null,
-        stats: null,
-        activities: [],
-        clubs: [],
-        groupEvents: {},
-        updatedAt: new Date().toISOString(),
-      }));
       return;
     } catch (err) {
       if (!res.writableEnded) {
@@ -275,6 +233,36 @@ export async function handleRequest(req, res) {
 
       res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       res.end(JSON.stringify(boards));
+      return;
+    } catch (err) {
+      if (!res.writableEnded) {
+        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
+      return;
+    }
+  }
+
+  // API Strava endpoint
+  if (pathname === "/api/strava") {
+    try {
+      if (testStravaData) {
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify(testStravaData));
+        return;
+      }
+
+      // In production, this would call the Strava backend service
+      // For now, return empty structure
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({
+        athlete: null,
+        stats: null,
+        activities: [],
+        clubs: [],
+        groupEvents: {},
+        updatedAt: new Date().toISOString(),
+      }));
       return;
     } catch (err) {
       if (!res.writableEnded) {
@@ -434,7 +422,4 @@ if (isMainModule()) {
 }
 
 // Export for testing
-<<<<<<< HEAD
-export { getPoller, resetPoller, createPoller, setTestConfig, setTestPoller, setTestStravaData, setTestBoardData, setTestPosey, clearTestOverrides, getPosey, resetConfigCache };
-=======
 export { getPoller, resetPoller, createPoller, setTestConfig, setTestPoller, setTestStravaData, setTestBoardData, setTestPosey, clearTestOverrides, getPosey, resetConfigCache };
