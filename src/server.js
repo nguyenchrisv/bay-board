@@ -17,7 +17,10 @@ const VERSION = pkg.version;
 let testGetConfig = null;
 let testPoller = null;
 let testStravaData = null;
+<<<<<<< HEAD
 let testBoardData = null;
+=======
+>>>>>>> 2203843 (fix: restore setTestStravaData export for Strava tests)
 let testPosey = null;
 
 function setTestConfig(getConfig) {
@@ -32,10 +35,13 @@ function setTestStravaData(data) {
   testStravaData = data;
 }
 
+<<<<<<< HEAD
 export function setTestBoardData(data) {
   testBoardData = data;
 }
 
+=======
+>>>>>>> 2203843 (fix: restore setTestStravaData export for Strava tests)
 function setTestPosey(posey) {
   testPosey = posey;
 }
@@ -44,7 +50,10 @@ function clearTestOverrides() {
   testGetConfig = null;
   testPoller = null;
   testStravaData = null;
+<<<<<<< HEAD
   testBoardData = null;
+=======
+>>>>>>> 2203843 (fix: restore setTestStravaData export for Strava tests)
   testPosey = null;
 }
 
@@ -112,6 +121,7 @@ export async function handleRequest(req, res) {
     return;
   }
 
+<<<<<<< HEAD
   // Config endpoint (for wall mode)
   if (pathname === "/api/config") {
     try {
@@ -136,6 +146,8 @@ export async function handleRequest(req, res) {
     }
   }
 
+=======
+>>>>>>> 2203843 (fix: restore setTestStravaData export for Strava tests)
   // API Strava endpoint
   if (pathname === "/api/strava") {
     try {
@@ -422,4 +434,7 @@ if (isMainModule()) {
 }
 
 // Export for testing
+<<<<<<< HEAD
+export { getPoller, resetPoller, createPoller, setTestConfig, setTestPoller, setTestStravaData, setTestBoardData, setTestPosey, clearTestOverrides, getPosey, resetConfigCache };
+=======
 export { getPoller, resetPoller, createPoller, setTestConfig, setTestPoller, setTestStravaData, setTestBoardData, setTestPosey, clearTestOverrides, getPosey, resetConfigCache };
