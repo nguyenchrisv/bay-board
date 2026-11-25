@@ -11,8 +11,5 @@
   "engines": {
     "node": ">=22"
   },
-  "license": "UNLICENSED",
-  "devDependencies": {
-    "playwright": "^1.65.1"
-  }
+  "license": "UNLICENSED"
 }
