@@ -12,6 +12,14 @@ import {
   createLineChipCell,
 } from "./split-flap.js";
 
+import {
+  isWallMode,
+  getWallModes,
+  getNextModeIndex,
+  formatWallDestination,
+  getRotationInterval,
+} from "./wall-view-utils.js";
+
 const POLL_INTERVAL_MS = 30_000;
 const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
@@ -45,6 +53,13 @@ const configuredModes = new Set(Object.keys(boards).filter((mode) => {
   return board && !board.dataset.unconfigured;
 }));
 
+// Wall view state
+let wallModeActive = false;
+let wallModes = [];
+let currentWallModeIndex = 0;
+let wallRotationTimer = null;
+let wallRotationInterval = 15_000;
+
 function updateClock() {
   const now = new Date();
   clockEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -66,11 +81,14 @@ function showMode(mode) {
 async function fetchBoard() {
   try {
     const res = await fetch("/api/board");
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      return { error: true, status: res.status, message: errorData.error || `HTTP ${res.status}` };
+    }
     return await res.json();
   } catch (err) {
     console.error("Failed to fetch board:", err);
-    return null;
+    return { error: true, status: 0, message: err.message };
   }
 }
 
@@ -87,7 +105,7 @@ function measureDestCap(boardEl) {
   return width >= DEST_CAP_THRESHOLD_PX ? 12 : 10;
 }
 
-function renderDepartures(boardEl, data, mode, capOverride) {
+function renderDepartures(boardEl, data, mode, capOverride, isWall = false) {
   const tbody = boardEl.querySelector(".departures tbody");
   if (!tbody) return;
 
@@ -97,7 +115,7 @@ function renderDepartures(boardEl, data, mode, capOverride) {
     tr.className = "empty-row";
     const td = document.createElement("td");
     td.setAttribute("colspan", "4");
-    td.textContent = "No departures";
+    td.textContent = isWall ? "NO DEPARTURES" : "No departures";
     tr.appendChild(td);
     tbody.appendChild(tr);
     previousDepartures[mode] = [];
@@ -109,7 +127,8 @@ function renderDepartures(boardEl, data, mode, capOverride) {
   const oldDepartures = previousDepartures[mode] || [];
 
   tbody.innerHTML = "";
-  for (let i = 0; i < newDepartures.length; i++) {
+  const maxRows = isWall ? 5 : newDepartures.length;
+  for (let i = 0; i < Math.min(newDepartures.length, maxRows); i++) {
     const dep = newDepartures[i];
     const oldDep = oldDepartures[i] || {};
 
@@ -126,22 +145,31 @@ function renderDepartures(boardEl, data, mode, capOverride) {
 
     // Destination - capped to the current tile cap (12, or 10 on narrow
     // cells) so long names never overflow into the MIN column (issue #6).
-    // Format both sides so diff compares like-for-like values and blank
-    // tiles don't re-animate on poll.
-    // For ferry/bus, abbreviate destination names first so they fit
-    // sensibly within the tile cap (e.g., "San Francisco Ferry Building"
-    // → "SF Ferry Bldg" → "SF Ferry Bld" at 12 tiles).
+    // For wall view, use larger cap (16 tiles) and wall destination formatting.
     const isBart = mode === "bart";
-    const oldDest = formatDestination(
-      isBart ? oldDep.destination : abbreviateDestination(oldDep.destination),
-      cap
-    );
-    const newDest = formatDestination(
-      isBart ? dep.destination : abbreviateDestination(dep.destination),
-      cap
-    );
+    let oldDest, newDest;
+    if (isWall) {
+      oldDest = formatWallDestination(
+        isBart ? oldDep.destination : abbreviateDestination(oldDep.destination),
+        16
+      );
+      newDest = formatWallDestination(
+        isBart ? dep.destination : abbreviateDestination(dep.destination),
+        16
+      );
+    } else {
+      oldDest = formatDestination(
+        isBart ? oldDep.destination : abbreviateDestination(oldDep.destination),
+        cap
+      );
+      newDest = formatDestination(
+        isBart ? dep.destination : abbreviateDestination(dep.destination),
+        cap
+      );
+    }
     const destChanges = diffStrings(oldDest, newDest);
-    tr.appendChild(createSplitFlapCell(newDest, destChanges, "destination-cell", cap));
+    const destTileCount = isWall ? 16 : cap;
+    tr.appendChild(createSplitFlapCell(newDest, destChanges, "destination-cell", destTileCount));
 
     // Minutes - use split-flap if changed
     const oldMin = formatMinutes(oldDep.minutes);
@@ -165,7 +193,7 @@ function renderDepartures(boardEl, data, mode, capOverride) {
   // After rendering, sync the cap with the real cell width: if the
   // measured cap differs from the one used, re-render once with it. The
   // override guard keeps this to a single extra pass.
-  if (capOverride === undefined) {
+  if (capOverride === undefined && !isWall) {
     const measured = measureDestCap(boardEl);
     if (measured && measured !== cap) {
       destCaps[mode] = measured;
@@ -183,7 +211,7 @@ function renderDepartures(boardEl, data, mode, capOverride) {
   }));
 }
 
-function updateBoard(boardEl, data, mode) {
+function updateBoard(boardEl, data, mode, isWall = false) {
   if (!data) return;
 
   const updatedEl = boardEl.querySelector(".updated");
@@ -209,7 +237,7 @@ function updateBoard(boardEl, data, mode) {
       tr.className = "empty-row";
       const td = document.createElement("td");
       td.setAttribute("colspan", "4");
-      td.textContent = comingSoon;
+      td.textContent = isWall ? comingSoon : comingSoon;
       tr.appendChild(td);
       tbody.appendChild(tr);
     }
@@ -230,32 +258,188 @@ function updateBoard(boardEl, data, mode) {
     staleBadge.hidden = false;
   }
 
-  renderDepartures(boardEl, data, mode);
+  renderDepartures(boardEl, data, mode, undefined, isWall);
 }
 
 async function poll() {
   const data = await fetchBoard();
   if (data) {
-    for (const [mode, boardEl] of Object.entries(boards)) {
-      if (boardEl && data[mode]) {
-        updateBoard(boardEl, data[mode], mode);
+    if (data.error) {
+      // Error response from API
+      if (wallModeActive) {
+        const currentMode = wallModes[currentWallModeIndex];
+        const boardEl = boards[currentMode];
+        if (boardEl) {
+          showWallBoardError(boardEl, data.message);
+        }
+      } else {
+        // Normal mode: show error on all boards
+        for (const [mode, boardEl] of Object.entries(boards)) {
+          if (boardEl) {
+            showBoardError(boardEl, data.message);
+          }
+        }
+      }
+      return;
+    }
+    if (wallModeActive) {
+      // In wall mode, only update the currently visible board
+      const currentMode = wallModes[currentWallModeIndex];
+      const boardEl = boards[currentMode];
+      if (boardEl && data[currentMode]) {
+        updateBoard(boardEl, data[currentMode], currentMode, true);
+      }
+    } else {
+      // Normal mode: update all boards
+      for (const [mode, boardEl] of Object.entries(boards)) {
+        if (boardEl && data[mode]) {
+          updateBoard(boardEl, data[mode], mode);
+        }
       }
     }
   }
 }
 
-// Tab switching
-for (const tab of tabs) {
-  tab.addEventListener("click", () => showMode(tab.dataset.mode));
+// Wall view functions
+function initWallMode(config) {
+  wallModeActive = true;
+  wallModes = getWallModes(config);
+  currentWallModeIndex = 0;
+  wallRotationInterval = getRotationInterval(config);
+
+  // Hide mode tabs
+  const modeTabs = document.querySelector(".mode-tabs");
+  if (modeTabs) modeTabs.hidden = true;
+
+  // Hide all boards initially
+  for (const board of Object.values(boards)) {
+    if (board) board.hidden = true;
+  }
+
+  // Show first board
+  showWallBoard(currentWallModeIndex);
+
+  // Initial poll to populate boards
+  poll();
+
+  // Start rotation timer
+  startWallRotation();
+
+  // Add tap/click handler to advance to next board
+  document.body.addEventListener("click", handleWallTap);
+  document.body.addEventListener("keydown", handleWallKeydown);
 }
 
-// Initialize: default to BART
-showMode("bart");
+function showBoardError(boardEl, message) {
+  const tbody = boardEl.querySelector(".departures tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  const tr = document.createElement("tr");
+  tr.className = "error-row";
+  const td = document.createElement("td");
+  td.setAttribute("colspan", "4");
+  td.textContent = `ERROR: ${message}`;
+  tr.appendChild(td);
+  tbody.appendChild(tr);
+}
 
-updateClock();
-setInterval(updateClock, 1000);
-poll();
-setInterval(poll, POLL_INTERVAL_MS);
+function showWallBoardError(boardEl, message) {
+  showBoardError(boardEl, message);
+  // Also update header to show error
+  const stopNameEl = boardEl.querySelector(".stop-name");
+  if (stopNameEl) {
+    stopNameEl.textContent = "ERROR";
+  }
+  const updatedEl = boardEl.querySelector(".updated");
+  if (updatedEl) {
+    updatedEl.textContent = "";
+  }
+}
+
+function showWallBoard(index) {
+  // Hide all boards
+  for (const board of Object.values(boards)) {
+    if (board) board.hidden = true;
+  }
+
+  // Show current board
+  const mode = wallModes[index];
+  const boardEl = boards[mode];
+  if (boardEl) {
+    boardEl.hidden = false;
+    boardEl.dataset.active = "true";
+  }
+}
+
+function advanceWallBoard() {
+  currentWallModeIndex = getNextModeIndex(currentWallModeIndex, wallModes);
+  showWallBoard(currentWallModeIndex);
+}
+
+function startWallRotation() {
+  if (wallRotationTimer) {
+    clearInterval(wallRotationTimer);
+  }
+  wallRotationTimer = setInterval(() => {
+    advanceWallBoard();
+    // Trigger a poll to update the new board
+    poll();
+  }, wallRotationInterval);
+}
+
+function stopWallRotation() {
+  if (wallRotationTimer) {
+    clearInterval(wallRotationTimer);
+    wallRotationTimer = null;
+  }
+}
+
+function handleWallTap(event) {
+  // Ignore clicks on interactive elements (tabs, etc.)
+  if (event.target.closest("button, a, input, select")) return;
+  advanceWallBoard();
+  poll();
+}
+
+function handleWallKeydown(event) {
+  // Space or Enter to advance
+  if (event.code === "Space" || event.code === "Enter") {
+    event.preventDefault();
+    advanceWallBoard();
+    poll();
+  }
+}
+
+// Initialize wall mode if active
+function init() {
+  // Check for wall mode
+  if (isWallMode()) {
+    // Fetch config to determine which modes are available
+    fetch("/api/config").then(res => res.json()).then(config => {
+      initWallMode(config);
+    }).catch(err => {
+      console.error("Failed to load config for wall mode:", err);
+      // Fallback: assume all modes
+      initWallMode({ bart: { stations: ["FTVL"] }, ferry: { stops: ["7206"] }, bus: { stops: ["57727"] } });
+    });
+    return;
+  }
+
+  // Normal mode initialization
+  showMode("bart");
+  updateClock();
+  setInterval(updateClock, 1000);
+  poll();
+  setInterval(poll, POLL_INTERVAL_MS);
+
+  // Tab switching
+  for (const tab of tabs) {
+    tab.addEventListener("click", () => showMode(tab.dataset.mode));
+  }
+}
+
+// Run initialization
+init();
 
 // Expose for testing
-window.__bayBoard = { poll, updateBoard, renderDepartures, showMode };
+window.__bayBoard = { poll, updateBoard, renderDepartures, showMode, initWallMode, advanceWallBoard };

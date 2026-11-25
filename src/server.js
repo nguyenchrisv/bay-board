@@ -16,6 +16,7 @@ const VERSION = pkg.version;
 let testGetConfig = null;
 let testPoller = null;
 let testStravaData = null;
+let testBoardData = null;
 
 export function setTestConfig(getConfig) {
   testGetConfig = getConfig;
@@ -29,10 +30,15 @@ export function setTestStravaData(data) {
   testStravaData = data;
 }
 
+export function setTestBoardData(data) {
+  testBoardData = data;
+}
+
 export function clearTestOverrides() {
   testGetConfig = null;
   testPoller = null;
   testStravaData = null;
+  testBoardData = null;
 }
 
 function getConfig() {
@@ -94,9 +100,40 @@ export async function handleRequest(req, res) {
     return;
   }
 
+  // Config endpoint (for wall mode)
+  if (pathname === "/api/config") {
+    try {
+      const config = await getConfig();
+      // Return sanitized config (no API keys)
+      const sanitized = {
+        bart: config.bart ? { stations: config.bart.stations } : null,
+        ferry: config.ferry ? { stops: config.ferry.stops } : null,
+        bus: config.bus ? { stops: config.bus.stops } : null,
+        strava: config.strava ? { enabled: !!config.strava.clientId } : null,
+        wallRotationMs: config.wallRotationMs,
+      };
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify(sanitized));
+      return;
+    } catch (err) {
+      if (!res.writableEnded) {
+        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
+      return;
+    }
+  }
+
   // API board endpoints
   if (pathname === "/api/board" || pathname.startsWith("/api/board/")) {
     try {
+      // Test override: allow testing error states
+      if (testBoardData) {
+        res.writeHead(testBoardData.status || 200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify(testBoardData.body || { error: "Test error" }));
+        return;
+      }
+
       const poller = await getPoller();
       const cache = poller.getCache();
       const config = await getConfig();
