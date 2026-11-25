@@ -964,6 +964,14 @@ body {
     padding: 20px;
     font-size: 1rem;
   }
+
+  .error-row td {
+    padding: 20px;
+    font-size: 1rem;
+    color: var(--warn);
+    font-weight: 700;
+    text-align: center;
+  }
 }
 
 /* Reduced motion for wall view */

@@ -16,6 +16,7 @@ const VERSION = pkg.version;
 let testGetConfig = null;
 let testPoller = null;
 let testStravaData = null;
+let testBoardData = null;
 
 export function setTestConfig(getConfig) {
   testGetConfig = getConfig;
@@ -29,10 +30,15 @@ export function setTestStravaData(data) {
   testStravaData = data;
 }
 
+export function setTestBoardData(data) {
+  testBoardData = data;
+}
+
 export function clearTestOverrides() {
   testGetConfig = null;
   testPoller = null;
   testStravaData = null;
+  testBoardData = null;
 }
 
 function getConfig() {
@@ -121,6 +127,13 @@ export async function handleRequest(req, res) {
   // API board endpoints
   if (pathname === "/api/board" || pathname.startsWith("/api/board/")) {
     try {
+      // Test override: allow testing error states
+      if (testBoardData) {
+        res.writeHead(testBoardData.status || 200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify(testBoardData.body || { error: "Test error" }));
+        return;
+      }
+
       const poller = await getPoller();
       const cache = poller.getCache();
       const config = await getConfig();

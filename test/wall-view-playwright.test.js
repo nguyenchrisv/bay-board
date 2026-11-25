@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFile } from "node:fs/promises";
 import { createPoller, resetPoller } from "../src/poller.js";
-import { setTestConfig, setTestPoller, clearTestOverrides } from "../src/server.js";
+import { setTestConfig, setTestPoller, clearTestOverrides, handleRequest } from "../src/server.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -235,27 +235,39 @@ if (chromium) {
     });
 
     test("wall view empty state renders at 720x720", async () => {
-      // This test uses a config with no stops configured
-      await page.goto(`${baseUrl}/?wall=square`);
-      await page.waitForSelector('section.board[data-mode="bart"]:not([hidden])', { timeout: 5000 });
-
-      // Wait for empty state (no departures)
-      await page.waitForTimeout(2000);
-
-      const screenshot = await page.screenshot({ path: "test-results/wall-empty.png" });
-      assert.ok(screenshot.length > 0);
-
-      // Check if empty row exists (might show "No departures" or "Loading...")
-      const hasEmptyOrLoading = await page.evaluate(() => {
-        const rows = document.querySelectorAll(".departures tbody tr");
-        return Array.from(rows).some(r => 
-          r.textContent.includes("NO DEPARTURES") || 
-          r.textContent.includes("No departures") ||
-          r.textContent.includes("Loading")
-        );
-      });
-      assert.ok(hasEmptyOrLoading);
+    // Use test override to return empty board data
+    const { setTestBoardData } = await import("../src/server.js");
+    setTestBoardData({ 
+      status: 200, 
+      body: { 
+        bart: { mode: "bart", stop: "FTVL", updatedAt: new Date().toISOString(), departures: [] },
+        ferry: { mode: "ferry", stop: "", updatedAt: new Date().toISOString(), departures: [], unconfigured: true },
+        bus: { mode: "bus", stop: "", updatedAt: new Date().toISOString(), departures: [], unconfigured: true }
+      } 
     });
+    
+    await page.goto(`${baseUrl}/?wall=square`);
+    await page.waitForSelector('section.board[data-mode="bart"]:not([hidden])', { timeout: 5000 });
+    await page.waitForTimeout(2000);
+
+    const screenshot = await page.screenshot({ path: "test-results/wall-empty.png" });
+    assert.ok(screenshot.length > 0);
+
+    // Check if empty row exists (might show "NO DEPARTURES" or "No departures" or "Loading...")
+    const hasEmptyOrLoading = await page.evaluate(() => {
+      const rows = document.querySelectorAll(".departures tbody tr");
+      return Array.from(rows).some(r => 
+        r.textContent.includes("NO DEPARTURES") || 
+        r.textContent.includes("No departures") ||
+        r.textContent.includes("Loading")
+      );
+    });
+    assert.ok(hasEmptyOrLoading);
+
+    // Clean up
+    const { setTestBoardData: clearTestBoardData } = await import("../src/server.js");
+    clearTestBoardData(null);
+  });
 
     test("wall view error state renders at 720x720", async () => {
       // The error state is harder to trigger without mocking network failure

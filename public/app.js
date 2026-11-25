@@ -81,11 +81,14 @@ function showMode(mode) {
 async function fetchBoard() {
   try {
     const res = await fetch("/api/board");
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      return { error: true, status: res.status, message: errorData.error || `HTTP ${res.status}` };
+    }
     return await res.json();
   } catch (err) {
     console.error("Failed to fetch board:", err);
-    return null;
+    return { error: true, status: 0, message: err.message };
   }
 }
 
@@ -261,6 +264,24 @@ function updateBoard(boardEl, data, mode, isWall = false) {
 async function poll() {
   const data = await fetchBoard();
   if (data) {
+    if (data.error) {
+      // Error response from API
+      if (wallModeActive) {
+        const currentMode = wallModes[currentWallModeIndex];
+        const boardEl = boards[currentMode];
+        if (boardEl) {
+          showWallBoardError(boardEl, data.message);
+        }
+      } else {
+        // Normal mode: show error on all boards
+        for (const [mode, boardEl] of Object.entries(boards)) {
+          if (boardEl) {
+            showBoardError(boardEl, data.message);
+          }
+        }
+      }
+      return;
+    }
     if (wallModeActive) {
       // In wall mode, only update the currently visible board
       const currentMode = wallModes[currentWallModeIndex];
@@ -298,12 +319,41 @@ function initWallMode(config) {
   // Show first board
   showWallBoard(currentWallModeIndex);
 
+  // Initial poll to populate boards
+  poll();
+
   // Start rotation timer
   startWallRotation();
 
   // Add tap/click handler to advance to next board
   document.body.addEventListener("click", handleWallTap);
   document.body.addEventListener("keydown", handleWallKeydown);
+}
+
+function showBoardError(boardEl, message) {
+  const tbody = boardEl.querySelector(".departures tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+  const tr = document.createElement("tr");
+  tr.className = "error-row";
+  const td = document.createElement("td");
+  td.setAttribute("colspan", "4");
+  td.textContent = `ERROR: ${message}`;
+  tr.appendChild(td);
+  tbody.appendChild(tr);
+}
+
+function showWallBoardError(boardEl, message) {
+  showBoardError(boardEl, message);
+  // Also update header to show error
+  const stopNameEl = boardEl.querySelector(".stop-name");
+  if (stopNameEl) {
+    stopNameEl.textContent = "ERROR";
+  }
+  const updatedEl = boardEl.querySelector(".updated");
+  if (updatedEl) {
+    updatedEl.textContent = "";
+  }
 }
 
 function showWallBoard(index) {
