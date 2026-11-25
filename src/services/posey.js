@@ -62,7 +62,8 @@ export class PoseyClient {
         error.status = 503;
         throw error;
       }
-      if (err.code === "ECONNREFUSED" || err.code === "ENOTFOUND") {
+      const causeCode = err.cause?.code || err.code;
+      if (causeCode === "ECONNREFUSED" || causeCode === "ENOTFOUND") {
         const error = new Error("posey-tube offline");
         error.status = 503;
         throw error;
