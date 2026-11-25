@@ -172,6 +172,8 @@ if (chromium) {
 
     test("wall view BART board renders at 720x720", async () => {
       await page.goto(`${baseUrl}/?wall=square`);
+      
+      await page.waitForSelector('.split-flap-tile', { timeout: 10000 });
       await page.waitForSelector('section.board[data-mode="bart"]:not([hidden])', { timeout: 5000 });
 
       // Take screenshot
@@ -200,13 +202,21 @@ if (chromium) {
 
     test("wall view ferry board renders at 720x720", async () => {
       await page.goto(`${baseUrl}/?wall=square`);
+      
+      await page.waitForSelector('.split-flap-tile', { timeout: 10000 });
       await page.waitForSelector('section.board[data-mode="bart"]:not([hidden])', { timeout: 5000 });
 
-      // Wait for rotation to ferry (or click to advance)
+      // Click to advance to ferry and trigger poll
       await page.click("body");
       await page.waitForTimeout(500);
-
+      await page.evaluate(() => window.__bayBoard && window.__bayBoard.poll && window.__bayBoard.poll());
+      
+      // Wait longer for poll to complete and render
+      await page.waitForTimeout(3000);
+      
+      // Wait for ferry board to appear AND for its departures to load
       await page.waitForSelector('section.board[data-mode="ferry"]:not([hidden])', { timeout: 5000 });
+      await page.waitForSelector('section.board[data-mode="ferry"]:not([hidden]) .departures tbody tr', { timeout: 10000 });
 
       const screenshot = await page.screenshot({ path: "test-results/wall-ferry.png" });
       assert.ok(screenshot.length > 0);
@@ -217,15 +227,24 @@ if (chromium) {
 
     test("wall view bus board renders at 720x720", async () => {
       await page.goto(`${baseUrl}/?wall=square`);
+      
+      await page.waitForSelector('.split-flap-tile', { timeout: 10000 });
       await page.waitForSelector('section.board[data-mode="bart"]:not([hidden])', { timeout: 5000 });
 
       // Click twice to get to bus
       await page.click("body");
       await page.waitForTimeout(500);
+      await page.evaluate(() => window.__bayBoard && window.__bayBoard.poll && window.__bayBoard.poll());
       await page.click("body");
       await page.waitForTimeout(500);
-
+      await page.evaluate(() => window.__bayBoard && window.__bayBoard.poll && window.__bayBoard.poll());
+      
+      // Wait longer for poll to complete and render
+      await page.waitForTimeout(3000);
+      
+      // Wait for bus board to appear AND for its departures to load
       await page.waitForSelector('section.board[data-mode="bus"]:not([hidden])', { timeout: 5000 });
+      await page.waitForSelector('section.board[data-mode="bus"]:not([hidden]) .departures tbody tr', { timeout: 10000 });
 
       const screenshot = await page.screenshot({ path: "test-results/wall-bus.png" });
       assert.ok(screenshot.length > 0);
@@ -270,10 +289,13 @@ if (chromium) {
   });
 
     test("wall view error state renders at 720x720", async () => {
-      // The error state is harder to trigger without mocking network failure
-      // This is a placeholder - in real tests we'd mock a 500 response
+      // Use test override to return error
+      const { setTestBoardData } = await import("../src/server.js");
+      setTestBoardData({ status: 500, body: { error: "Internal server error" } });
+      
       await page.goto(`${baseUrl}/?wall=square`);
       await page.waitForSelector('section.board[data-mode="bart"]:not([hidden])', { timeout: 5000 });
+      await page.waitForTimeout(3000);
 
       const screenshot = await page.screenshot({ path: "test-results/wall-error.png" });
       assert.ok(screenshot.length > 0);
