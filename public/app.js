@@ -40,6 +40,24 @@ const previousDepartures = {
   bus: [],
 };
 
+// Track consecutive failures per board (for issue #39)
+// Only show ERROR after MAX_CONSECUTIVE_FAILURES consecutive failures
+const MAX_CONSECUTIVE_FAILURES = 3;
+const consecutiveFailures = {
+  bart: 0,
+  ferry: 0,
+  bus: 0,
+  fitness: 0,
+};
+
+// Track whether we have ever received good data for each board
+const hasGoodData = {
+  bart: false,
+  ferry: false,
+  bus: false,
+  fitness: false,
+};
+
 // Destination tile cap per mode: 12 tiles while the DESTINATION cell is
 // wide enough to show them at >=12px (>= 155px content with 1px gaps —
 // same threshold as the CSS --tile formula); below that, 10 tiles so the
@@ -265,37 +283,72 @@ async function poll() {
   const data = await fetchBoard();
   if (data) {
     if (data.error) {
-      // Error response from API
+      // Error response from API - handle per board
       if (wallModeActive) {
+        // In wall mode, only handle the currently visible board
         const currentMode = wallModes[currentWallModeIndex];
         const boardEl = boards[currentMode];
         if (boardEl) {
-          showWallBoardError(boardEl, data.message);
+          handleBoardFailure(boardEl, currentMode, data.message);
         }
       } else {
-        // Normal mode: show error on all boards
+        // Normal mode: handle failures for all boards
         for (const [mode, boardEl] of Object.entries(boards)) {
-          if (boardEl) {
-            showBoardError(boardEl, data.message);
+          if (boardEl && data[mode]?.error) {
+            handleBoardFailure(boardEl, mode, data.message);
           }
         }
       }
       return;
     }
+    // Success - process data
     if (wallModeActive) {
       // In wall mode, only update the currently visible board
       const currentMode = wallModes[currentWallModeIndex];
       const boardEl = boards[currentMode];
       if (boardEl && data[currentMode]) {
-        updateBoard(boardEl, data[currentMode], currentMode, true);
+        handleBoardSuccess(boardEl, currentMode, data[currentMode]);
       }
     } else {
       // Normal mode: update all boards
       for (const [mode, boardEl] of Object.entries(boards)) {
         if (boardEl && data[mode]) {
-          updateBoard(boardEl, data[mode], mode);
+          handleBoardSuccess(boardEl, mode, data[mode]);
         }
       }
+    }
+  }
+}
+
+function handleBoardSuccess(boardEl, mode, data) {
+  // Reset failure count on success
+  consecutiveFailures[mode] = 0;
+  hasGoodData[mode] = true;
+  updateBoard(boardEl, data, mode, false);
+}
+
+function handleBoardFailure(boardEl, mode, message) {
+  // Increment failure count
+  consecutiveFailures[mode]++;
+  
+  // Only show ERROR if:
+  // 1. We have never received good data for this board, OR
+  // 2. We've hit MAX_CONSECUTIVE_FAILURES consecutive failures
+  const shouldShowError = !hasGoodData[mode] || consecutiveFailures[mode] >= MAX_CONSECUTIVE_FAILURES;
+  
+  if (shouldShowError) {
+    showBoardError(boardEl, message);
+  } else {
+    // We have good data and haven't hit max failures yet
+    // Mark the board as stale but keep showing the last good data
+    const staleBadge = boardEl.querySelector(".badge.stale");
+    if (staleBadge) {
+      staleBadge.hidden = false;
+    }
+    const updatedEl = boardEl.querySelector(".updated");
+    if (updatedEl && updatedEl.textContent) {
+      // Update the updated text to show it's stale
+      updatedEl.textContent = `UPDATED (stale - ${consecutiveFailures[mode]}/${MAX_CONSECUTIVE_FAILURES} failures)`;
     }
   }
 }
