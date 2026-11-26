@@ -2,8 +2,9 @@ import { createServer } from "node:http";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { serveStatic } from "./static.js";
-import { getConfig as defaultGetConfig } from "./config.js";
+import { getConfig as defaultGetConfig, resetConfigCache } from "./config.js";
 import { getPoller as defaultGetPoller, resetPoller as defaultResetPoller, createPoller } from "./poller.js";
+import { PoseyClient, authorizeControl, isPoseyEnabled } from "./services/posey.js";
 import pkg from "../package.json" with { type: "json" };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,28 +18,34 @@ let testGetConfig = null;
 let testPoller = null;
 let testStravaData = null;
 let testBoardData = null;
+let testPosey = null;
 
-export function setTestConfig(getConfig) {
+function setTestConfig(getConfig) {
   testGetConfig = getConfig;
 }
 
-export function setTestPoller(poller) {
+function setTestPoller(poller) {
   testPoller = poller;
 }
 
-export function setTestStravaData(data) {
+function setTestStravaData(data) {
   testStravaData = data;
 }
 
-export function setTestBoardData(data) {
+function setTestBoardData(data) {
   testBoardData = data;
 }
 
-export function clearTestOverrides() {
+function setTestPosey(posey) {
+  testPosey = posey;
+}
+
+function clearTestOverrides() {
   testGetConfig = null;
   testPoller = null;
   testStravaData = null;
   testBoardData = null;
+  testPosey = null;
 }
 
 function getConfig() {
@@ -47,6 +54,11 @@ function getConfig() {
 
 function getPoller() {
   return testPoller ? Promise.resolve(testPoller) : defaultGetPoller();
+}
+
+async function getPosey() {
+  if (testPosey) return testPosey;
+  return PoseyClient.create();
 }
 
 function resetPoller() {
@@ -261,6 +273,115 @@ export async function handleRequest(req, res) {
     }
   }
 
+  // API GPIO endpoints
+  if (pathname === "/api/gpio" || pathname.startsWith("/api/gpio/")) {
+    try {
+      const config = await getConfig();
+
+      // Feature disabled if env vars not set
+      if (!isPoseyEnabled(config)) {
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ enabled: false }));
+        return;
+      }
+
+      const posey = await getPosey();
+      if (!posey) {
+        res.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "posey-tube unavailable" }));
+        return;
+      }
+
+      const pathParts = pathname.split("/api/gpio/")[1];
+
+      // GET /api/gpio - list pins
+      if (pathname === "/api/gpio" && req.method === "GET") {
+        try {
+          const pins = await posey.listPins();
+          res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ enabled: true, pins }));
+          return;
+        } catch (err) {
+          if (err.status === 503) {
+            res.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ error: "posey-tube offline" }));
+            return;
+          }
+          throw err;
+        }
+        return;
+      }
+
+      // POST /api/gpio/{name} - set pin state
+      if (pathParts && req.method === "POST") {
+        const pinName = pathParts;
+
+        // PIN-code plumbing: every write route goes through authorizeControl
+        try {
+          await authorizeControl(req);
+        } catch (err) {
+          if (err.status === 403) {
+            res.writeHead(403, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ error: "PIN required" }));
+            return;
+          }
+          throw err;
+        }
+
+        let body;
+        try {
+          const chunks = [];
+          for await (const chunk of req) {
+            chunks.push(chunk);
+          }
+          body = JSON.parse(Buffer.concat(chunks).toString());
+        } catch {
+          res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: "Invalid JSON" }));
+          return;
+        }
+
+        // Validate body
+        const hasOn = typeof body.on === "boolean";
+        const hasPulse = typeof body.pulse_ms === "number" && body.pulse_ms > 0;
+        const hasEnabled = typeof body.enabled === "boolean";
+
+        if ((hasOn ? 1 : 0) + (hasPulse ? 1 : 0) + (hasEnabled ? 1 : 0) !== 1) {
+          res.writeHead(422, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ error: "Provide exactly one of: on (bool), pulse_ms (positive int), enabled (bool)" }));
+          return;
+        }
+
+        try {
+          const result = await posey.setPin(pathParts, body);
+          res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify(result));
+          return;
+        } catch (err) {
+          if (err.status) {
+            // Pass through posey-tube error status (404, 409, 422, 423, 503)
+            res.writeHead(err.status, { "Content-Type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ error: err.message || `posey-tube error: ${err.status}` }));
+            return;
+          }
+          throw err;
+        }
+        return;
+      }
+
+      // Unknown GPIO endpoint
+      res.writeHead(404, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: "Not found" }));
+      return;
+    } catch (err) {
+      if (!res.writableEnded) {
+        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
+      return;
+    }
+  }
+
   // Static files
   try {
     const served = await serveStatic(req, res, pathname);
@@ -301,4 +422,4 @@ if (isMainModule()) {
 }
 
 // Export for testing
-export { getPoller, resetPoller, createPoller };
+export { getPoller, resetPoller, createPoller, setTestConfig, setTestPoller, setTestStravaData, setTestBoardData, setTestPosey, clearTestOverrides, getPosey, resetConfigCache };
