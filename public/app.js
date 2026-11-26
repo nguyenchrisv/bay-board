@@ -58,6 +58,17 @@ const hasGoodData = {
   fitness: false,
 };
 
+/**
+ * Pure function to determine if an error should be shown for a board.
+ * @param {boolean} hasGoodData - Whether we've ever received good data for this board
+ * @param {number} consecutiveFailures - Number of consecutive failures
+ * @param {number} maxConsecutiveFailures - Maximum allowed consecutive failures before showing error
+ * @returns {boolean} - True if error should be shown
+ */
+function shouldShowError(hasGoodData, consecutiveFailures, maxConsecutiveFailures = MAX_CONSECUTIVE_FAILURES) {
+  return !hasGoodData || consecutiveFailures >= maxConsecutiveFailures;
+}
+
 // Destination tile cap per mode: 12 tiles while the DESTINATION cell is
 // wide enough to show them at >=12px (>= 155px content with 1px gaps —
 // same threshold as the CSS --tile formula); below that, 10 tiles so the
@@ -334,9 +345,9 @@ function handleBoardFailure(boardEl, mode, message) {
   // Only show ERROR if:
   // 1. We have never received good data for this board, OR
   // 2. We've hit MAX_CONSECUTIVE_FAILURES consecutive failures
-  const shouldShowError = !hasGoodData[mode] || consecutiveFailures[mode] >= MAX_CONSECUTIVE_FAILURES;
+  const shouldShow = shouldShowError(hasGoodData[mode], consecutiveFailures[mode]);
   
-  if (shouldShowError) {
+  if (shouldShow) {
     showBoardError(boardEl, message);
   } else {
     // We have good data and haven't hit max failures yet
@@ -494,5 +505,5 @@ function init() {
 // Run initialization
 init();
 
-// Expose for testing
-window.__bayBoard = { poll, updateBoard, renderDepartures, showMode, initWallMode, advanceWallBoard };
+// Export for testing
+window.__bayBoard = { poll, updateBoard, renderDepartures, showMode, initWallMode, advanceWallBoard, shouldShowError };
