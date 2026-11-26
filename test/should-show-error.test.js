@@ -63,6 +63,16 @@ describe("shouldShowError pure function", () => {
     });
   });
 
+  describe("resetConsecutiveFailures", () => {
+    test("resets failure count for a mode", () => {
+      const consecutiveFailures = { bart: 3, ferry: 2, bus: 1 };
+      resetConsecutiveFailures(consecutiveFailures, "bart");
+      assert.equal(consecutiveFailures.bart, 0);
+      assert.equal(consecutiveFailures.ferry, 2); // unchanged
+      assert.equal(consecutiveFailures.bus, 1); // unchanged
+    });
+  });
+
   describe("markGoodDataReceived", () => {
     test("marks a mode as having received good data", () => {
       const hasGoodData = { bart: false, ferry: false };
