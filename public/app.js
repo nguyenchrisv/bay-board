@@ -300,13 +300,15 @@ async function poll() {
         const currentMode = wallModes[currentWallModeIndex];
         const boardEl = boards[currentMode];
         if (boardEl) {
-          handleBoardFailure(boardEl, currentMode, data.message);
+          handleBoardFailure(boardEl, currentMode, data.message, true);
         }
       } else {
-        // Normal mode: handle failures for all boards
+        // Normal mode: on HTTP failure, fetchBoard() returns a top-level
+        // error object with NO per-mode keys. Handle failure for all
+        // configured boards with the same message.
         for (const [mode, boardEl] of Object.entries(boards)) {
-          if (boardEl && data[mode]?.error) {
-            handleBoardFailure(boardEl, mode, data.message);
+          if (boardEl && configuredModes.has(mode)) {
+            handleBoardFailure(boardEl, mode, data.message, false);
           }
         }
       }
@@ -318,37 +320,41 @@ async function poll() {
       const currentMode = wallModes[currentWallModeIndex];
       const boardEl = boards[currentMode];
       if (boardEl && data[currentMode]) {
-        handleBoardSuccess(boardEl, currentMode, data[currentMode]);
+        handleBoardSuccess(boardEl, currentMode, data[currentMode], true);
       }
     } else {
       // Normal mode: update all boards
       for (const [mode, boardEl] of Object.entries(boards)) {
         if (boardEl && data[mode]) {
-          handleBoardSuccess(boardEl, mode, data[mode]);
+          handleBoardSuccess(boardEl, mode, data[mode], false);
         }
       }
     }
   }
 }
 
-function handleBoardSuccess(boardEl, mode, data) {
+function handleBoardSuccess(boardEl, mode, data, isWall = false) {
   // Reset failure count on success
   consecutiveFailures[mode] = 0;
   hasGoodData[mode] = true;
-  updateBoard(boardEl, data, mode, false);
+  updateBoard(boardEl, data, mode, isWall);
 }
 
-function handleBoardFailure(boardEl, mode, message) {
+function handleBoardFailure(boardEl, mode, message, isWall = false) {
   // Increment failure count
   consecutiveFailures[mode]++;
-  
+
   // Only show ERROR if:
   // 1. We have never received good data for this board, OR
   // 2. We've hit MAX_CONSECUTIVE_FAILURES consecutive failures
   const shouldShow = shouldShowError(hasGoodData[mode], consecutiveFailures[mode]);
-  
+
   if (shouldShow) {
-    showBoardError(boardEl, message);
+    if (isWall) {
+      showWallBoardError(boardEl, message);
+    } else {
+      showBoardError(boardEl, message);
+    }
   } else {
     // We have good data and haven't hit max failures yet
     // Mark the board as stale but keep showing the last good data
