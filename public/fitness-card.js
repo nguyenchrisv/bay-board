@@ -20,7 +20,7 @@ import {
 } from "./fitness-card-utils.js";
 
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour - Strava API limited to 1 call/hour
-const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
+const STALE_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours: backend refreshes Strava hourly
 
 const fitnessBoard = document.querySelector('section.board[data-mode="fitness"]');
 const typeTabsNav = document.querySelector(".fitness-types");
@@ -39,8 +39,10 @@ let typeTabsKey = "";
 let previousStats = null;
 let pollIntervalId = null;
 
+let fitnessUpdatedAt = null; // once real data arrives, UPDATED shows the data time, not the wall clock
+
 function updateFitnessClock() {
-  if (!updatedEl) return;
+  if (!updatedEl || fitnessUpdatedAt) return;
   const now = new Date();
   updatedEl.textContent = `UPDATED ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
@@ -181,6 +183,7 @@ function updateFitnessBoard(data) {
 
   if (data.updatedAt) {
     const dt = new Date(data.updatedAt);
+    fitnessUpdatedAt = dt;
     if (updatedEl) {
       updatedEl.textContent = `UPDATED ${dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`;
     }
