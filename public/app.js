@@ -20,6 +20,8 @@ import {
   getRotationInterval,
 } from "./wall-view-utils.js";
 
+import { MAX_CONSECUTIVE_FAILURES, shouldShowError, resetConsecutiveFailures, markGoodDataReceived } from "./error-logic.js";
+
 const POLL_INTERVAL_MS = 30_000;
 const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
@@ -42,7 +44,6 @@ const previousDepartures = {
 
 // Track consecutive failures per board (for issue #39)
 // Only show ERROR after MAX_CONSECUTIVE_FAILURES consecutive failures
-const MAX_CONSECUTIVE_FAILURES = 3;
 const consecutiveFailures = {
   bart: 0,
   ferry: 0,
@@ -57,17 +58,6 @@ const hasGoodData = {
   bus: false,
   fitness: false,
 };
-
-/**
- * Pure function to determine if an error should be shown for a board.
- * @param {boolean} hasGoodData - Whether we've ever received good data for this board
- * @param {number} consecutiveFailures - Number of consecutive failures
- * @param {number} maxConsecutiveFailures - Maximum allowed consecutive failures before showing error
- * @returns {boolean} - True if error should be shown
- */
-function shouldShowError(hasGoodData, consecutiveFailures, maxConsecutiveFailures = MAX_CONSECUTIVE_FAILURES) {
-  return !hasGoodData || consecutiveFailures >= maxConsecutiveFailures;
-}
 
 // Destination tile cap per mode: 12 tiles while the DESTINATION cell is
 // wide enough to show them at >=12px (>= 155px content with 1px gaps —
@@ -512,4 +502,4 @@ function init() {
 init();
 
 // Export for testing
-window.__bayBoard = { poll, updateBoard, renderDepartures, showMode, initWallMode, advanceWallBoard, shouldShowError };
+window.__bayBoard = { poll, updateBoard, renderDepartures, showMode, initWallMode, advanceWallBoard };
