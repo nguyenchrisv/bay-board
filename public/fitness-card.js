@@ -12,13 +12,21 @@ import {
   createStatCard,
   createProgressBar,
   createGroupEventCard,
+  rangeStart,
+  rangeTitle,
+  computeRangeTotals,
+  scaleGoal,
+  activityTypesByCount,
 } from "./fitness-card-utils.js";
 
 const POLL_INTERVAL_MS = 60 * 60 * 1000; // 1 hour - Strava API limited to 1 call/hour
 const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
 const fitnessBoard = document.querySelector('section.board[data-mode="fitness"]');
-const fitnessTabs = document.querySelectorAll('.fitness-tabs [role="tab"]');
+const typeTabsNav = document.querySelector(".fitness-types");
+let fitnessTabs = document.querySelectorAll('.fitness-types [role="tab"]');
+const rangeTabs = document.querySelectorAll('.fitness-range [role="tab"]');
+const rangeTitleEl = document.getElementById("fitness-range-title");
 const statsGrid = document.getElementById('fitness-stats');
 const progressBars = document.getElementById('fitness-progress-bars');
 const groupRidesList = document.getElementById('group-rides-list');
@@ -26,6 +34,8 @@ const updatedEl = fitnessBoard?.querySelector('.updated');
 const staleBadge = fitnessBoard?.querySelector('.badge.stale');
 
 let currentActivity = "Ride";
+let currentRange = "7";
+let typeTabsKey = "";
 let previousStats = null;
 let pollIntervalId = null;
 
@@ -43,6 +53,37 @@ function showFitnessTab(activity) {
   renderFitnessData(currentFitnessData);
 }
 
+function showFitnessRange(range) {
+  currentRange = range;
+  for (const tab of rangeTabs) {
+    tab.setAttribute("aria-selected", tab.dataset.range === range);
+  }
+  if (rangeTitleEl) rangeTitleEl.textContent = rangeTitle(range);
+  renderFitnessData(currentFitnessData);
+}
+
+// Build the activity tabs from the types actually in the data (most frequent first).
+function syncTypeTabs(activities) {
+  if (!typeTabsNav) return;
+  const types = activityTypesByCount(activities, 4);
+  if (types.length === 0) return;
+  const key = types.join(",");
+  if (key === typeTabsKey) return;
+  typeTabsKey = key;
+  if (!types.includes(currentActivity)) currentActivity = types[0];
+  typeTabsNav.innerHTML = "";
+  for (const t of types) {
+    const btn = document.createElement("button");
+    btn.setAttribute("role", "tab");
+    btn.dataset.activity = t;
+    btn.textContent = t.replace(/([a-z])([A-Z])/g, "$1 $2").toUpperCase();
+    btn.setAttribute("aria-selected", t === currentActivity);
+    btn.addEventListener("click", () => showFitnessTab(t));
+    typeTabsNav.appendChild(btn);
+  }
+  fitnessTabs = typeTabsNav.querySelectorAll('[role="tab"]');
+}
+
 async function fetchFitnessData() {
   try {
     const res = await fetch("/api/strava");
@@ -52,53 +93,6 @@ async function fetchFitnessData() {
     console.error("Failed to fetch fitness data:", err);
     return null;
   }
-}
-
-function computeWeeklyDistance(activities, activityType) {
-  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  let totalMeters = 0;
-  let totalMovingTime = 0;
-  let count = 0;
-  let totalSpeed = 0;
-
-  for (const activity of activities) {
-    if (activity.sport_type !== activityType && activity.type !== activityType) continue;
-    const startTime = new Date(activity.start_date).getTime();
-    if (startTime < oneWeekAgo) continue;
-
-    totalMeters += activity.distance || 0;
-    totalMovingTime += activity.moving_time || 0;
-    count++;
-    if (activity.average_speed) totalSpeed += activity.average_speed;
-  }
-
-  return {
-    distanceMeters: totalMeters,
-    movingTime: totalMovingTime,
-    count,
-    avgSpeed: count > 0 ? totalSpeed / count : 0,
-  };
-}
-
-function computeYTDDistance(activities, activityType) {
-  const yearStart = new Date();
-  yearStart.setMonth(0, 1);
-  yearStart.setHours(0, 0, 0, 0);
-  const yearStartTime = yearStart.getTime();
-
-  let totalMeters = 0;
-  let count = 0;
-
-  for (const activity of activities) {
-    if (activity.sport_type !== activityType && activity.type !== activityType) continue;
-    const startTime = new Date(activity.start_date).getTime();
-    if (startTime < yearStartTime) continue;
-
-    totalMeters += activity.distance || 0;
-    count++;
-  }
-
-  return { distanceMeters: totalMeters, count };
 }
 
 let currentFitnessData = null;
@@ -114,9 +108,11 @@ function renderFitnessData(data) {
   currentFitnessData = data;
   const { athlete, stats, activities, clubs, groupEvents } = data;
 
-  // Get weekly stats for current activity type
-  const weekly = computeWeeklyDistance(activities, currentActivity);
-  const ytd = computeYTDDistance(activities, currentActivity);
+  syncTypeTabs(activities);
+
+  // Totals for the selected type and range
+  const now = Date.now();
+  const weekly = computeRangeTotals(activities, currentActivity, rangeStart(currentRange, now));
   const labels = getActivityLabels(currentActivity);
 
   // Weekly goals (hardcoded for now, could come from config)
@@ -126,7 +122,7 @@ function renderFitnessData(data) {
     Swim: { distance: 5000, time: 2 * 3600 }, // 5km, 2 hours
     default: { distance: 16093.44, time: 3600 }, // 10 miles, 1 hour
   };
-  const goal = weeklyGoals[currentActivity] || weeklyGoals.default;
+  const goal = scaleGoal(weeklyGoals[currentActivity] || weeklyGoals.default, currentRange, now);
 
   // Render stats cards
   statsGrid.innerHTML = "";
@@ -204,6 +200,9 @@ async function pollFitness() {
 for (const tab of fitnessTabs) {
   tab.addEventListener("click", () => showFitnessTab(tab.dataset.activity));
 }
+for (const tab of rangeTabs) {
+  tab.addEventListener("click", () => showFitnessRange(tab.dataset.range));
+}
 
 // Initialize
 updateFitnessClock();
@@ -212,4 +211,4 @@ pollFitness();
 pollIntervalId = setInterval(pollFitness, POLL_INTERVAL_MS);
 
 // Expose for testing
-window.__fitnessCard = { pollFitness, updateFitnessBoard, renderFitnessData, showFitnessTab };
+window.__fitnessCard = { pollFitness, updateFitnessBoard, renderFitnessData, showFitnessTab, showFitnessRange };

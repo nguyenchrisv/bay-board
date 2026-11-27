@@ -92,13 +92,20 @@
         <span class="badge stale" hidden>STALE</span>
       </div>
       <div class="fitness-content">
-        <nav class="fitness-tabs" role="tablist" aria-label="Activity types">
+        <nav class="fitness-tabs fitness-types" role="tablist" aria-label="Activity types">
           <button role="tab" aria-selected="true" data-activity="Ride">RIDE</button>
           <button role="tab" aria-selected="false" data-activity="Run">RUN</button>
           <button role="tab" aria-selected="false" data-activity="Swim">SWIM</button>
         </nav>
-        <div class="fitness-progress" role="region" aria-label="Weekly progress">
-          <h3 class="fitness-section-title">WEEKLY PROGRESS</h3>
+        <nav class="fitness-tabs fitness-range" role="tablist" aria-label="Time range">
+          <button role="tab" aria-selected="true" data-range="7">7D</button>
+          <button role="tab" aria-selected="false" data-range="30">30D</button>
+          <button role="tab" aria-selected="false" data-range="60">60D</button>
+          <button role="tab" aria-selected="false" data-range="90">90D</button>
+          <button role="tab" aria-selected="false" data-range="ytd">YTD</button>
+        </nav>
+        <div class="fitness-progress" role="region" aria-label="Progress">
+          <h3 class="fitness-section-title" id="fitness-range-title">LAST 7 DAYS</h3>
           <div class="fitness-stats-grid" id="fitness-stats"></div>
           <div class="fitness-progress-bars" id="fitness-progress-bars"></div>
         </div>
