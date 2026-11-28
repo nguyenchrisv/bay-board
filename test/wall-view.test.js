@@ -1,49 +1,26 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-
-// Pure functions for wall view - will be extracted to a module
-
-const WALL_MODES = ["bart", "ferry", "bus", "fitness"];
-
-function isWallMode() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get("wall") === "square";
-}
-
-function getWallModes(config) {
-  const modes = ["bart"];
-  if (config.ferry?.stops?.length > 0) modes.push("ferry");
-  if (config.bus?.stops?.length > 0) modes.push("bus");
-  if (config.strava?.enabled) modes.push("fitness");
-  return modes;
-}
-
-function getNextModeIndex(currentIndex, modes) {
-  return (currentIndex + 1) % modes.length;
-}
-
-function formatWallDestination(destination, maxTiles = 16) {
-  return String(destination || "").slice(0, maxTiles);
-}
-
-function calculateTileSize(viewportWidth, viewportHeight, tileCount, gap = 2) {
-  // Calculate tile size to fit exactly in viewport
-  const availableWidth = viewportWidth - (tileCount - 1) * gap;
-  return Math.floor(availableWidth / tileCount);
-}
-
-function calculateRowsForViewport(viewportHeight, tileHeight, headerHeight = 60, gap = 8) {
-  const availableHeight = viewportHeight - headerHeight - gap;
-  const rows = Math.floor(availableHeight / tileHeight);
-  // Cap at 5 rows for wall view readability
-  return Math.min(rows, 5);
-}
+import {
+  isWallMode,
+  isTerminalWallMode,
+  getWallModeType,
+  getTerminalTheme,
+  getWallModes,
+  getNextModeIndex,
+  formatWallDestination,
+  calculateTileSize,
+  calculateRowsForViewport,
+} from "../public/wall-view-utils.js";
 
 describe("Wall view utilities", () => {
   describe("isWallMode", () => {
     test("returns true for ?wall=square", () => {
-      // Mock window.location
       global.window = { location: { search: "?wall=square" } };
+      assert.equal(isWallMode(), true);
+    });
+
+    test("returns true for ?wall=terminal", () => {
+      global.window = { location: { search: "?wall=terminal" } };
       assert.equal(isWallMode(), true);
     });
 
@@ -55,6 +32,84 @@ describe("Wall view utilities", () => {
     test("returns false for other wall values", () => {
       global.window = { location: { search: "?wall=landscape" } };
       assert.equal(isWallMode(), false);
+    });
+  });
+
+  describe("isTerminalWallMode", () => {
+    test("returns true for ?wall=terminal", () => {
+      global.window = { location: { search: "?wall=terminal" } };
+      assert.equal(isTerminalWallMode(), true);
+    });
+
+    test("returns false for ?wall=square", () => {
+      global.window = { location: { search: "?wall=square" } };
+      assert.equal(isTerminalWallMode(), false);
+    });
+
+    test("returns false for no wall param", () => {
+      global.window = { location: { search: "" } };
+      assert.equal(isTerminalWallMode(), false);
+    });
+  });
+
+  describe("getWallModeType", () => {
+    test("returns 'square' for ?wall=square", () => {
+      global.window = { location: { search: "?wall=square" } };
+      assert.equal(getWallModeType(), "square");
+    });
+
+    test("returns 'terminal' for ?wall=terminal", () => {
+      global.window = { location: { search: "?wall=terminal" } };
+      assert.equal(getWallModeType(), "terminal");
+    });
+
+    test("returns null for no wall param", () => {
+      global.window = { location: { search: "" } };
+      assert.equal(getWallModeType(), null);
+    });
+  });
+
+  describe("getTerminalTheme", () => {
+    // Mock matchMedia for these tests
+    const mockMatchMedia = (matches) => {
+      global.window = global.window || {};
+      global.window.matchMedia = (query) => ({ matches });
+    };
+
+    test("returns explicit theme when provided", () => {
+      global.window = { location: { search: "?wall=terminal&theme=dark" } };
+      mockMatchMedia(false);
+      assert.equal(getTerminalTheme(), "dark");
+    });
+
+    test("returns explicit theme: light", () => {
+      global.window = { location: { search: "?wall=terminal&theme=light" } };
+      mockMatchMedia(false);
+      assert.equal(getTerminalTheme(), "light");
+    });
+
+    test("returns explicit theme: retro", () => {
+      global.window = { location: { search: "?wall=terminal&theme=retro" } };
+      mockMatchMedia(false);
+      assert.equal(getTerminalTheme(), "retro");
+    });
+
+    test("falls back to prefers-color-scheme when no theme param", () => {
+      global.window = { location: { search: "?wall=terminal" } };
+      mockMatchMedia(true);
+      assert.equal(getTerminalTheme(), "dark");
+    });
+
+    test("falls back to light when no theme param and prefers light", () => {
+      global.window = { location: { search: "?wall=terminal" } };
+      mockMatchMedia(false);
+      assert.equal(getTerminalTheme(), "light");
+    });
+
+    test("ignores invalid theme values", () => {
+      global.window = { location: { search: "?wall=terminal&theme=invalid" } };
+      mockMatchMedia(false);
+      assert.equal(getTerminalTheme(), "light");
     });
   });
 
