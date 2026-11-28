@@ -38,7 +38,6 @@ const tabs = document.querySelectorAll(".mode-tabs [role=\"tab\"]");
 const clockEl = document.querySelector(".clock");
 const editLayoutBtn = document.querySelector(".edit-layout-btn");
 const editModePanel = document.querySelector("#edit-mode-panel");
-const editModeTilesEl = document.querySelector(".edit-mode-tiles");
 const editModeHiddenEl = document.querySelector(".edit-mode-hidden");
 const resetLayoutBtn = document.querySelector(".reset-layout-btn");
 const doneEditBtn = document.querySelector(".done-edit-btn");
@@ -85,7 +84,7 @@ let wallRotationInterval = 15_000;
 
 // Layout model
 const DEFAULT_TILES = [
-  { id: "bart", title: "BART", width: "full" },
+  { id: "bart", title: "BART", width: "half" },
   { id: "ferry", title: "Ferry", width: "half" },
   { id: "bus", title: "Bus", width: "half" },
   { id: "fitness", title: "Fitness", width: "full" },
@@ -547,23 +546,7 @@ function updateMobileTabsOrder() {
 function renderEditModePanel() {
   const layout = layoutModel.getLayout();
 
-  // Render visible tiles list
-  const visibleTiles = layout.filter(t => !t.hidden);
-  editModeTilesEl.innerHTML = "";
-  if (visibleTiles.length === 0) {
-    editModeTilesEl.innerHTML = '<p class="empty-message">No visible tiles</p>';
-  } else {
-    const h3 = document.createElement("h3");
-    h3.textContent = "Visible tiles (drag to reorder)";
-    editModeTilesEl.appendChild(h3);
-
-    visibleTiles.forEach((tile, index) => {
-      const tileEl = createEditTileElement(tile, index, false);
-      editModeTilesEl.appendChild(tileEl);
-    });
-  }
-
-  // Render hidden tiles list
+  // Render hidden tiles list only (visible tiles are edited in-place)
   const hiddenTiles = layout.filter(t => t.hidden);
   editModeHiddenEl.innerHTML = "";
   if (hiddenTiles.length === 0) {
@@ -574,119 +557,61 @@ function renderEditModePanel() {
     editModeHiddenEl.appendChild(h3);
 
     hiddenTiles.forEach((tile) => {
-      const tileEl = createEditTileElement(tile, null, true);
+      const tileEl = createHiddenTileElement(tile);
       editModeHiddenEl.appendChild(tileEl);
     });
   }
 
-  // Add drag-and-drop handlers
-  addDragHandlers();
+  // Add drag handlers for in-place tile dragging
+  addInPlaceDragHandlers();
 }
 
-function createEditTileElement(tile, visibleIndex, isHidden) {
+function createHiddenTileElement(tile) {
   const div = document.createElement("div");
-  div.className = `edit-tile${isHidden ? " hidden-tile" : ""}`;
+  div.className = "edit-tile hidden-tile";
   div.dataset.tileId = tile.id;
-  if (!isHidden) div.dataset.visibleIndex = visibleIndex;
-
-  // Drag handle
-  const dragHandle = document.createElement("button");
-  dragHandle.type = "button";
-  dragHandle.className = "edit-tile-drag-handle";
-  dragHandle.setAttribute("aria-label", `Drag ${tile.title} to reorder`);
-  dragHandle.innerHTML = "⋮⋮";
-  dragHandle.tabIndex = 0;
 
   // Title
   const titleSpan = document.createElement("span");
   titleSpan.className = "edit-tile-title";
   titleSpan.textContent = tile.title;
 
-  // Controls
-  const controls = document.createElement("div");
-  controls.className = "edit-tile-controls";
-
-  // Width toggle
-  const widthBtn = document.createElement("button");
-  widthBtn.type = "button";
-  widthBtn.className = `edit-tile-width-btn${tile.width === "full" ? " full-width" : ""}`;
-  widthBtn.textContent = tile.width === "full" ? "FULL" : "HALF";
-  widthBtn.setAttribute("aria-label", `${tile.title}: switch to ${tile.width === "full" ? "half" : "full"} width`);
-  widthBtn.addEventListener("click", () => {
-    layoutModel.toggleWidth(tile.id);
+  // Show button
+  const showBtn = document.createElement("button");
+  showBtn.type = "button";
+  showBtn.className = "edit-tile-visibility-btn show-btn";
+  showBtn.textContent = "SHOW";
+  showBtn.setAttribute("aria-label", `Show ${tile.title} tile`);
+  showBtn.addEventListener("click", () => {
+    layoutModel.setHidden(tile.id, false);
     applyLayoutToBoards();
   });
 
-  // Visibility toggle
-  const visibilityBtn = document.createElement("button");
-  visibilityBtn.type = "button";
-  visibilityBtn.className = `edit-tile-visibility-btn${isHidden ? " hidden" : ""}`;
-  visibilityBtn.textContent = isHidden ? "SHOW" : "HIDE";
-  visibilityBtn.setAttribute("aria-label", `${tile.title}: ${isHidden ? "show" : "hide"} tile`);
-  visibilityBtn.addEventListener("click", () => {
-    layoutModel.setHidden(tile.id, !isHidden);
-    applyLayoutToBoards();
-  });
-
-  // Move earlier/later buttons (only for visible tiles)
-  if (!isHidden && visibleIndex !== null) {
-    const layout = layoutModel.getLayout();
-    const visibleTiles = layout.filter(t => !t.hidden);
-
-    // Move earlier
-    if (visibleIndex > 0) {
-      const moveUpBtn = document.createElement("button");
-      moveUpBtn.type = "button";
-      moveUpBtn.className = "edit-tile-move-btn";
-      moveUpBtn.textContent = "↑";
-      moveUpBtn.setAttribute("aria-label", `Move ${tile.title} earlier`);
-      moveUpBtn.addEventListener("click", () => {
-        layoutModel.moveTile(tile.id, visibleIndex - 1);
-        applyLayoutToBoards();
-        announcePositionChange(tile.title, visibleIndex - 1);
-      });
-      controls.appendChild(moveUpBtn);
-    }
-
-    // Move later
-    if (visibleIndex < visibleTiles.length - 1) {
-      const moveDownBtn = document.createElement("button");
-      moveDownBtn.type = "button";
-      moveDownBtn.className = "edit-tile-move-btn";
-      moveDownBtn.textContent = "↓";
-      moveDownBtn.setAttribute("aria-label", `Move ${tile.title} later`);
-      moveDownBtn.addEventListener("click", () => {
-        layoutModel.moveTile(tile.id, visibleIndex + 1);
-        applyLayoutToBoards();
-        announcePositionChange(tile.title, visibleIndex + 1);
-      });
-      controls.appendChild(moveDownBtn);
-    }
-  }
-
-  controls.prepend(widthBtn);
-  controls.appendChild(visibilityBtn);
-
-  div.appendChild(dragHandle);
   div.appendChild(titleSpan);
-  div.appendChild(controls);
+  div.appendChild(showBtn);
 
   return div;
 }
 
-function addDragHandlers() {
-  const tiles = editModeTilesEl.querySelectorAll(".edit-tile:not(.hidden-tile)");
+function addInPlaceDragHandlers() {
+  const tiles = document.querySelectorAll(".transit-boards .board:not([hidden])");
   tiles.forEach(tile => {
-    tile.addEventListener("pointerdown", handleDragStart);
-    tile.addEventListener("dragstart", e => e.preventDefault()); // Prevent native drag
+    // Only add if not already added
+    if (!tile.dataset.dragHandlersAdded) {
+      tile.addEventListener("pointerdown", handleInPlaceDragStart);
+      tile.dataset.dragHandlersAdded = "true";
+    }
   });
 }
 
-function handleDragStart(e) {
+function handleInPlaceDragStart(e) {
   if (e.button !== 0 && e.pointerType !== "touch") return; // Only left click or touch
+  // Don't start drag if clicking on interactive elements
+  if (e.target.closest(".board-header button, .board-header a, .fitness-tabs button, input, select, .edit-tile-controls button")) return;
+
   const tile = e.currentTarget;
-  const mode = tile.dataset.tileId;
-  const index = parseInt(tile.dataset.visibleIndex, 10);
+  const mode = tile.dataset.mode;
+  const index = Array.from(tile.parentNode.children).indexOf(tile);
 
   // Create ghost element for visual feedback
   const ghost = tile.cloneNode(true);
@@ -695,6 +620,9 @@ function handleDragStart(e) {
   ghost.style.pointerEvents = "none";
   ghost.style.zIndex = "1000";
   ghost.style.opacity = "0.8";
+  // Hide the edit controls in the ghost
+  const ghostControls = ghost.querySelector(".edit-tile-controls");
+  if (ghostControls) ghostControls.style.display = "none";
   document.body.appendChild(ghost);
 
   dragState = {
@@ -703,7 +631,7 @@ function handleDragStart(e) {
     ghostEl: ghost,
     startX: e.clientX,
     startY: e.clientY,
-    currentIndex: parseInt(tile.dataset.visibleIndex, 10),
+    currentIndex: index,
   };
 
   tile.classList.add("dragging");
@@ -713,64 +641,68 @@ function handleDragStart(e) {
   updateGhostPosition(e);
 
   // Add global pointer events
-  document.addEventListener("pointermove", handleDragMove);
-  document.addEventListener("pointerup", handleDragEnd);
-  document.addEventListener("pointercancel", handleDragEnd);
+  document.addEventListener("pointermove", handleInPlaceDragMove);
+  document.addEventListener("pointerup", handleInPlaceDragEnd);
+  document.addEventListener("pointercancel", handleInPlaceDragEnd);
 }
 
 function updateGhostPosition(e) {
   if (!dragState || !dragState.ghostEl) return;
-  dragState.ghostEl.style.left = `${e.clientX - 80}px`;
-  dragState.ghostEl.style.top = `${e.clientY - 30}px`;
+  dragState.ghostEl.style.left = `${e.clientX - 100}px`;
+  dragState.ghostEl.style.top = `${e.clientY - 80}px`;
 }
 
-function handleDragMove(e) {
+function handleInPlaceDragMove(e) {
   if (!dragState) return;
   e.preventDefault();
   updateGhostPosition(e);
 
-  // Find drop target
-  const tiles = editModeTilesEl.querySelectorAll(".edit-tile:not(.hidden-tile):not(.dragging)");
-  const layout = layoutModel.getLayout();
-  const visibleTiles = layout.filter(t => !t.hidden);
+  // Find drop target among visible boards
+  const container = document.querySelector(".transit-boards");
+  if (!container) return;
 
-  for (const tile of tiles) {
-    const rect = tile.getBoundingClientRect();
+  const boards = container.querySelectorAll(".board:not([hidden]):not(.dragging)");
+  for (const board of boards) {
+    const rect = board.getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
 
+    // Clear previous indicators
+    board.classList.remove("drag-over-above", "drag-over-below");
+
     if (e.clientY < midY) {
-      // Show drop indicator above this tile
-      tile.classList.add("drag-over-above");
-      tile.classList.remove("drag-over-below");
+      // Show drop indicator above this board
+      board.classList.add("drag-over-above");
     } else {
-      tile.classList.add("drag-over-below");
-      tile.classList.remove("drag-over-above");
+      board.classList.add("drag-over-below");
     }
   }
 }
 
-function handleDragEnd(e) {
+function handleInPlaceDragEnd(e) {
   if (!dragState) return;
 
-  // Find drop target
-  const tiles = editModeTilesEl.querySelectorAll(".edit-tile:not(.hidden-tile):not(.dragging)");
+  // Find drop target among visible boards
+  const container = document.querySelector(".transit-boards");
+  if (!container) return;
+
+  const boards = container.querySelectorAll(".board:not([hidden]):not(.dragging)");
   let newIndex = dragState.currentIndex;
 
-  for (const tile of tiles) {
-    const rect = tile.getBoundingClientRect();
+  for (const board of boards) {
+    const rect = board.getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
 
     if (e.clientY < midY) {
-      newIndex = parseInt(tile.dataset.visibleIndex, 10);
+      newIndex = Array.from(container.children).indexOf(board);
       break;
     } else {
-      newIndex = parseInt(tile.dataset.visibleIndex, 10) + 1;
+      newIndex = Array.from(container.children).indexOf(board) + 1;
     }
   }
 
   // Clean up drop indicators
-  tiles.forEach(t => {
-    t.classList.remove("drag-over-above", "drag-over-below");
+  boards.forEach(b => {
+    b.classList.remove("drag-over-above", "drag-over-below");
   });
 
   // Perform the move if index changed
@@ -778,7 +710,7 @@ function handleDragEnd(e) {
     const mode = dragState.sourceMode;
     layoutModel.moveTile(mode, newIndex);
     applyLayoutToBoards();
-    announcePositionChange(dragState.sourceMode, newIndex);
+    announcePositionChange(mode, newIndex);
   }
 
   // Clean up
@@ -787,9 +719,9 @@ function handleDragEnd(e) {
   document.body.classList.remove("dragging");
   dragState = null;
 
-  document.removeEventListener("pointermove", handleDragMove);
-  document.removeEventListener("pointerup", handleDragEnd);
-  document.removeEventListener("pointercancel", handleDragEnd);
+  document.removeEventListener("pointermove", handleInPlaceDragMove);
+  document.removeEventListener("pointerup", handleInPlaceDragEnd);
+  document.removeEventListener("pointercancel", handleInPlaceDragEnd);
 }
 
 function announcePositionChange(tileId, newVisibleIndex) {
@@ -823,6 +755,8 @@ function toggleEditMode() {
   if (editModeActive) {
     editLayoutBtn.textContent = "Done editing";
     renderEditModePanel();
+    // Show edit controls on each board
+    addInPlaceEditControls();
     // Hide mode tabs on mobile during edit mode
     const modeTabs = document.querySelector(".mode-tabs");
     if (modeTabs && window.innerWidth < 600) {
@@ -835,7 +769,105 @@ function toggleEditMode() {
     if (modeTabs && window.innerWidth < 600) {
       modeTabs.hidden = false;
     }
+    // Remove edit controls from boards
+    removeInPlaceEditControls();
   }
+}
+
+function addInPlaceEditControls() {
+  const layout = layoutModel.getLayout();
+  const visibleTiles = layout.filter(t => !t.hidden);
+
+  visibleTiles.forEach((tile, index) => {
+    const boardEl = boards[tile.id];
+    if (!boardEl) return;
+
+    // Add edit controls overlay if not already present
+    if (!boardEl.querySelector(".edit-tile-controls-overlay")) {
+      const controls = createInPlaceEditControls(tile, index, visibleTiles.length);
+      boardEl.insertBefore(controls, boardEl.firstChild);
+    }
+  });
+}
+
+function createInPlaceEditControls(tile, index, totalVisible) {
+  const overlay = document.createElement("div");
+  overlay.className = "edit-tile-controls-overlay";
+  overlay.dataset.tileId = tile.id;
+
+  // Drag handle
+  const dragHandle = document.createElement("button");
+  dragHandle.type = "button";
+  dragHandle.className = "edit-tile-drag-handle";
+  dragHandle.setAttribute("aria-label", `Drag ${tile.title} to reorder`);
+  dragHandle.innerHTML = "⋮⋮";
+  dragHandle.tabIndex = 0;
+
+  // Width toggle
+  const widthBtn = document.createElement("button");
+  widthBtn.type = "button";
+  widthBtn.className = `edit-tile-width-btn${tile.width === "full" ? " full-width" : ""}`;
+  widthBtn.textContent = tile.width === "full" ? "FULL" : "1/3";
+  widthBtn.setAttribute("aria-label", `${tile.title}: switch to ${tile.width === "full" ? "1/3" : "full"} width`);
+  widthBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    layoutModel.toggleWidth(tile.id);
+    applyLayoutToBoards();
+  });
+
+  // Hide button
+  const hideBtn = document.createElement("button");
+  hideBtn.type = "button";
+  hideBtn.className = "edit-tile-visibility-btn hide-btn";
+  hideBtn.textContent = "HIDE";
+  hideBtn.setAttribute("aria-label", `Hide ${tile.title} tile`);
+  hideBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    layoutModel.setHidden(tile.id, true);
+    applyLayoutToBoards();
+  });
+
+  // Move earlier button
+  if (index > 0) {
+    const moveUpBtn = document.createElement("button");
+    moveUpBtn.type = "button";
+    moveUpBtn.className = "edit-tile-move-btn";
+    moveUpBtn.textContent = "↑";
+    moveUpBtn.setAttribute("aria-label", `Move ${tile.title} earlier`);
+    moveUpBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      layoutModel.moveTile(tile.id, index - 1);
+      applyLayoutToBoards();
+      announcePositionChange(tile.id, index - 1);
+    });
+    overlay.appendChild(moveUpBtn);
+  }
+
+  // Move later button
+  if (index < totalVisible - 1) {
+    const moveDownBtn = document.createElement("button");
+    moveDownBtn.type = "button";
+    moveDownBtn.className = "edit-tile-move-btn";
+    moveDownBtn.textContent = "↓";
+    moveDownBtn.setAttribute("aria-label", `Move ${tile.title} later`);
+    moveDownBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      layoutModel.moveTile(tile.id, index + 1);
+      applyLayoutToBoards();
+      announcePositionChange(tile.id, index + 1);
+    });
+    overlay.appendChild(moveDownBtn);
+  }
+
+  overlay.appendChild(dragHandle);
+  overlay.appendChild(widthBtn);
+  overlay.appendChild(hideBtn);
+
+  return overlay;
+}
+
+function removeInPlaceEditControls() {
+  document.querySelectorAll(".edit-tile-controls-overlay").forEach(el => el.remove());
 }
 
 function resetLayout() {

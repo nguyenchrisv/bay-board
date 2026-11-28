@@ -27,10 +27,23 @@ class LayoutModel {
     return registry;
   }
 
+  _safeLocalStorage() {
+    try {
+      // Check both window (browser) and global (Node test environment)
+      if (typeof window !== "undefined" && window.localStorage) {
+        return window.localStorage;
+      }
+      if (typeof globalThis !== "undefined" && globalThis.localStorage) {
+        return globalThis.localStorage;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   _loadLayout() {
-    // In Node test environment, localStorage is mocked globally
-    // In browser, it's the real localStorage
-    const storage = typeof localStorage !== "undefined" ? localStorage : null;
+    const storage = this._safeLocalStorage();
     if (!storage) return this._getDefaultLayout();
 
     try {
@@ -76,7 +89,7 @@ class LayoutModel {
   }
 
   _saveLayout() {
-    const storage = typeof localStorage !== "undefined" ? localStorage : null;
+    const storage = this._safeLocalStorage();
     if (!storage) return;
     try {
       storage.setItem(STORAGE_KEY, JSON.stringify(this.tiles));
@@ -121,7 +134,7 @@ class LayoutModel {
 
   reset() {
     this.tiles = this._getDefaultLayout();
-    const storage = typeof localStorage !== "undefined" ? localStorage : null;
+    const storage = this._safeLocalStorage();
     if (storage) {
       try {
         storage.removeItem(STORAGE_KEY);

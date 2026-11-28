@@ -144,7 +144,7 @@ describe("LayoutModel", () => {
 
     it("persists reorder to localStorage", () => {
       model.moveTile("fitness", 0);
-      const saved = JSON.parse(storage.get("bayboard:layout"));
+      const saved = JSON.parse(global.localStorage.getItem("bayboard:layout"));
       assert.equal(saved[0].id, "fitness");
     });
   });
@@ -166,7 +166,7 @@ describe("LayoutModel", () => {
 
     it("persists resize to localStorage", () => {
       model.toggleWidth("bart");
-      const saved = JSON.parse(storage.get("bayboard:layout"));
+      const saved = JSON.parse(global.localStorage.getItem("bayboard:layout"));
       assert.equal(saved.find(t => t.id === "bart").width, "half");
     });
   });
@@ -190,7 +190,7 @@ describe("LayoutModel", () => {
 
     it("persists hide/show to localStorage", () => {
       model.setHidden("bart", true);
-      const saved = JSON.parse(storage.get("bayboard:layout"));
+      const saved = JSON.parse(global.localStorage.getItem("bayboard:layout"));
       assert.equal(saved.find(t => t.id === "bart").hidden, true);
     });
   });

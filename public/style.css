@@ -1084,13 +1084,11 @@ body {
   color: var(--flap);
 }
 
-.edit-mode-tiles,
 .edit-mode-hidden {
   padding: 16px;
   flex: 1;
 }
 
-.edit-mode-tiles h3,
 .edit-mode-hidden h3 {
   font-size: 0.75rem;
   font-weight: 700;
@@ -1233,6 +1231,81 @@ body {
   outline-offset: 2px;
 }
 
+/* In-place edit controls on tiles */
+.edit-tile-controls-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background-color: rgba(250, 249, 245, 0.95);
+  border-bottom: 2px solid var(--accent);
+  z-index: 10;
+  flex-wrap: wrap;
+}
+
+.edit-tile-controls-overlay .edit-tile-drag-handle {
+  color: var(--ink-muted);
+  cursor: grab;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-tile-controls-overlay .edit-tile-drag-handle:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.edit-tile-controls-overlay .edit-tile-width-btn,
+.edit-tile-controls-overlay .edit-tile-visibility-btn,
+.edit-tile-controls-overlay .edit-tile-move-btn {
+  background: transparent;
+  border: 1px solid var(--flap-edge);
+  color: var(--ink);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  min-height: 32px;
+  min-width: 32px;
+}
+
+.edit-tile-controls-overlay .edit-tile-width-btn:hover,
+.edit-tile-controls-overlay .edit-tile-visibility-btn:hover,
+.edit-tile-controls-overlay .edit-tile-move-btn:hover {
+  background-color: var(--flap-edge);
+}
+
+.edit-tile-controls-overlay .edit-tile-width-btn:focus-visible,
+.edit-tile-controls-overlay .edit-tile-visibility-btn:focus-visible,
+.edit-tile-controls-overlay .edit-tile-move-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.edit-tile-controls-overlay .edit-tile-width-btn.full-width {
+  background-color: var(--accent);
+  color: var(--flap);
+  border-color: var(--accent);
+}
+
+.edit-tile-controls-overlay .edit-tile-visibility-btn.hide-btn {
+  background-color: var(--warn);
+  color: var(--flap);
+  border-color: var(--warn);
+}
+
 /* Edit mode: board drag styles */
 .edit-mode .board {
   cursor: grab;
@@ -1246,9 +1319,12 @@ body {
   z-index: 50;
 }
 
-.edit-mode .board.drag-over {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent);
+.edit-mode .board.drag-over-above {
+  border-top: 3px solid var(--accent);
+}
+
+.edit-mode .board.drag-over-below {
+  border-bottom: 3px solid var(--accent);
 }
 
 /* Responsive edit mode panel */
@@ -1268,7 +1344,6 @@ body {
     padding: 12px 16px;
   }
 
-  .edit-mode-tiles,
   .edit-mode-hidden {
     padding: 12px 16px;
   }
@@ -1277,8 +1352,16 @@ body {
     padding: 10px;
   }
 
-  .edit-tile-controls {
-    gap: 6px;
+  .edit-tile-controls-overlay {
+    padding: 6px;
+  }
+
+  .edit-tile-controls-overlay .edit-tile-width-btn,
+  .edit-tile-controls-overlay .edit-tile-visibility-btn,
+  .edit-tile-controls-overlay .edit-tile-move-btn {
+    min-height: 28px;
+    min-width: 28px;
+    font-size: 0.5625rem;
   }
 
   .done-edit-btn {
