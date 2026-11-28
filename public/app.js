@@ -621,7 +621,7 @@ function handleInPlaceDragStart(e) {
   ghost.style.zIndex = "1000";
   ghost.style.opacity = "0.8";
   // Hide the edit controls in the ghost
-  const ghostControls = ghost.querySelector(".edit-tile-controls");
+  const ghostControls = ghost.querySelector(".edit-tile-controls-overlay");
   if (ghostControls) ghostControls.style.display = "none";
   document.body.appendChild(ghost);
 
@@ -632,6 +632,7 @@ function handleInPlaceDragStart(e) {
     startX: e.clientX,
     startY: e.clientY,
     currentIndex: index,
+    dropTarget: null, // Track the current drop target
   };
 
   tile.classList.add("dragging");
@@ -662,6 +663,8 @@ function handleInPlaceDragMove(e) {
   if (!container) return;
 
   const boards = container.querySelectorAll(".board:not([hidden]):not(.dragging)");
+  let foundTarget = false;
+
   for (const board of boards) {
     const rect = board.getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
@@ -672,8 +675,25 @@ function handleInPlaceDragMove(e) {
     if (e.clientY < midY) {
       // Show drop indicator above this board
       board.classList.add("drag-over-above");
+      if (!foundTarget) {
+        dragState.dropTarget = { board, position: "above" };
+        foundTarget = true;
+      }
     } else {
       board.classList.add("drag-over-below");
+      if (!foundTarget) {
+        dragState.dropTarget = { board, position: "below" };
+        foundTarget = true;
+      }
+    }
+  }
+
+  // If no target found (dragging below all), target is after last
+  if (!foundTarget) {
+    const allBoards = container.querySelectorAll(".board:not([hidden]):not(.dragging)");
+    const lastBoard = allBoards[allBoards.length - 1];
+    if (lastBoard) {
+      dragState.dropTarget = { board: lastBoard, position: "below" };
     }
   }
 }
@@ -681,29 +701,29 @@ function handleInPlaceDragMove(e) {
 function handleInPlaceDragEnd(e) {
   if (!dragState) return;
 
-  // Find drop target among visible boards
-  const container = document.querySelector(".transit-boards");
-  if (!container) return;
-
-  const boards = container.querySelectorAll(".board:not([hidden]):not(.dragging)");
+  // Use the tracked drop target from drag move
   let newIndex = dragState.currentIndex;
 
-  for (const board of boards) {
-    const rect = board.getBoundingClientRect();
-    const midY = rect.top + rect.height / 2;
-
-    if (e.clientY < midY) {
-      newIndex = Array.from(container.children).indexOf(board);
-      break;
-    } else {
-      newIndex = Array.from(container.children).indexOf(board) + 1;
+  if (dragState.dropTarget) {
+    const container = document.querySelector(".transit-boards");
+    if (container) {
+      const targetIndex = Array.from(container.children).indexOf(dragState.dropTarget.board);
+      if (dragState.dropTarget.position === "above") {
+        newIndex = targetIndex;
+      } else {
+        newIndex = targetIndex + 1;
+      }
     }
   }
 
   // Clean up drop indicators
-  boards.forEach(b => {
-    b.classList.remove("drag-over-above", "drag-over-below");
-  });
+  const container = document.querySelector(".transit-boards");
+  if (container) {
+    const boards = container.querySelectorAll(".board:not([hidden]):not(.dragging)");
+    boards.forEach(b => {
+      b.classList.remove("drag-over-above", "drag-over-below");
+    });
+  }
 
   // Perform the move if index changed
   if (newIndex !== dragState.currentIndex) {
