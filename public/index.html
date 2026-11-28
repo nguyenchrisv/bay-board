@@ -10,7 +10,10 @@
 <body>
   <header class="header">
     <h1>DEPARTURES</h1>
-    <time class="clock" aria-live="polite">00:00</time>
+    <div class="header-actions">
+      <button class="edit-layout-btn" aria-label="Edit layout" aria-expanded="false" aria-controls="edit-mode-panel" hidden>Edit layout</button>
+      <time class="clock" aria-live="polite">00:00</time>
+    </div>
   </header>
   <nav class="mode-tabs" role="tablist" aria-label="Transit modes" hidden>
     <button role="tab" aria-selected="true" data-mode="bart">BART</button>
@@ -118,6 +121,18 @@
       </div>
     </section>
   </main>
+
+  <!-- Edit mode panel (shown when edit mode is active) -->
+  <aside class="edit-mode-panel" id="edit-mode-panel" role="region" aria-label="Layout editor" hidden>
+    <div class="edit-mode-header">
+      <h2>Edit Layout</h2>
+      <button class="reset-layout-btn">Reset layout</button>
+    </div>
+    <div class="edit-mode-tiles" role="list" aria-label="Tile order"></div>
+    <div class="edit-mode-hidden" role="list" aria-label="Hidden tiles"></div>
+    <button class="done-edit-btn">Done</button>
+  </aside>
+
   <script type="module" src="/split-flap.js"></script>
   <script type="module" src="/wall-view-utils.js"></script>
   <script type="module" src="/fitness-card.js"></script>

@@ -22,6 +22,8 @@ import {
 
 import { MAX_CONSECUTIVE_FAILURES, shouldShowError, resetConsecutiveFailures, markGoodDataReceived } from "./error-logic.js";
 
+import { LayoutModel } from "./layout-model.js";
+
 const POLL_INTERVAL_MS = 30_000;
 const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
@@ -34,6 +36,12 @@ const boards = {
 
 const tabs = document.querySelectorAll(".mode-tabs [role=\"tab\"]");
 const clockEl = document.querySelector(".clock");
+const editLayoutBtn = document.querySelector(".edit-layout-btn");
+const editModePanel = document.querySelector("#edit-mode-panel");
+const editModeTilesEl = document.querySelector(".edit-mode-tiles");
+const editModeHiddenEl = document.querySelector(".edit-mode-hidden");
+const resetLayoutBtn = document.querySelector(".reset-layout-btn");
+const doneEditBtn = document.querySelector(".done-edit-btn");
 
 // Store previous departures for character diffing
 const previousDepartures = {
@@ -43,7 +51,6 @@ const previousDepartures = {
 };
 
 // Track consecutive failures per board (for issue #39)
-// Only show ERROR after MAX_CONSECUTIVE_FAILURES consecutive failures
 const consecutiveFailures = {
   bart: 0,
   ferry: 0,
@@ -59,10 +66,7 @@ const hasGoodData = {
   fitness: false,
 };
 
-// Destination tile cap per mode: 12 tiles while the DESTINATION cell is
-// wide enough to show them at >=12px (>= 155px content with 1px gaps —
-// same threshold as the CSS --tile formula); below that, 10 tiles so the
-// tiles stay readable instead of shrinking to nothing.
+// Destination tile cap per mode
 const DEST_CAP_THRESHOLD_PX = 155;
 const destCaps = { bart: 12, ferry: 12, bus: 12 };
 
@@ -78,6 +82,18 @@ let wallModes = [];
 let currentWallModeIndex = 0;
 let wallRotationTimer = null;
 let wallRotationInterval = 15_000;
+
+// Layout model
+const DEFAULT_TILES = [
+  { id: "bart", title: "BART", width: "full" },
+  { id: "ferry", title: "Ferry", width: "half" },
+  { id: "bus", title: "Bus", width: "half" },
+  { id: "fitness", title: "Fitness", width: "full" },
+];
+
+let layoutModel;
+let editModeActive = false;
+let dragState = null; // { sourceEl, sourceMode, ghostEl, startX, startY }
 
 function updateClock() {
   const now = new Date();
@@ -111,9 +127,6 @@ async function fetchBoard() {
   }
 }
 
-// Measure the rendered DESTINATION cell content width and derive the cap
-// (12 or 10) with the same math as the CSS tile-size formula. Returns null
-// when no cell is rendered (empty board).
 function measureDestCap(boardEl) {
   const cell = boardEl.querySelector(".departures td.destination-cell");
   if (!cell) return null;
@@ -162,9 +175,7 @@ function renderDepartures(boardEl, data, mode, capOverride, isWall = false) {
     lineChipCell.prepend(srSpan);
     tr.appendChild(lineChipCell);
 
-    // Destination - capped to the current tile cap (12, or 10 on narrow
-    // cells) so long names never overflow into the MIN column (issue #6).
-    // For wall view, use larger cap (16 tiles) and wall destination formatting.
+    // Destination - capped to the current tile cap
     const isBart = mode === "bart";
     let oldDest, newDest;
     if (isWall) {
@@ -209,9 +220,7 @@ function renderDepartures(boardEl, data, mode, capOverride, isWall = false) {
     tbody.appendChild(tr);
   }
 
-  // After rendering, sync the cap with the real cell width: if the
-  // measured cap differs from the one used, re-render once with it. The
-  // override guard keeps this to a single extra pass.
+  // After rendering, sync the cap with the real cell width
   if (capOverride === undefined && !isWall) {
     const measured = measureDestCap(boardEl);
     if (measured && measured !== cap) {
@@ -245,7 +254,6 @@ function updateBoard(boardEl, data, mode, isWall = false) {
   if (data.stop) stopNameEl.textContent = data.stop;
 
   // Handle unconfigured boards (ferry/bus) - show COMING SOON, no stale badge.
-  // Title is the mode name, never a "not configured" placeholder (issue #6).
   if (data.unconfigured) {
     stopNameEl.textContent = mode === "ferry" ? "FERRY" : "BUS";
     const comingSoon = mode === "ferry" ? "FERRY \u00B7 COMING SOON" : "BUS \u00B7 COMING SOON";
@@ -371,6 +379,9 @@ function initWallMode(config) {
   const modeTabs = document.querySelector(".mode-tabs");
   if (modeTabs) modeTabs.hidden = true;
 
+  // Hide edit layout button in wall mode
+  if (editLayoutBtn) editLayoutBtn.hidden = true;
+
   // Hide all boards initially
   for (const board of Object.values(boards)) {
     if (board) board.hidden = true;
@@ -470,7 +481,369 @@ function handleWallKeydown(event) {
   }
 }
 
-// Initialize wall mode if active
+// Layout model initialization
+function initLayoutModel() {
+  layoutModel = new LayoutModel({ defaultTiles: DEFAULT_TILES });
+
+  // Apply saved layout to boards
+  applyLayoutToBoards();
+
+  // Show/hide edit layout button based on whether there are multiple tiles
+  const layout = layoutModel.getLayout();
+  if (editLayoutBtn && layout.length > 1) {
+    editLayoutBtn.hidden = false;
+  }
+}
+
+function applyLayoutToBoards() {
+  const layout = layoutModel.getLayout();
+
+  // Apply order, width, and hidden state to each board
+  layout.forEach((tile, index) => {
+    const boardEl = boards[tile.id];
+    if (!boardEl) return;
+
+    // Set order via CSS order property
+    boardEl.style.order = index;
+
+    // Set width
+    boardEl.dataset.width = tile.width;
+
+    // Set hidden state
+    boardEl.hidden = tile.hidden;
+
+    // Update mobile tab visibility
+    const tab = document.querySelector(`.mode-tabs [data-mode="${tile.id}"]`);
+    if (tab) {
+      tab.hidden = tile.hidden;
+    }
+  });
+
+  // Update mobile tab order to match layout order
+  updateMobileTabsOrder();
+
+  // Re-render edit mode panel if active
+  if (editModeActive) {
+    renderEditModePanel();
+  }
+}
+
+function updateMobileTabsOrder() {
+  const modeTabsEl = document.querySelector(".mode-tabs");
+  if (!modeTabsEl) return;
+
+  const layout = layoutModel.getLayout();
+  const visibleTabs = layout.filter(t => !t.hidden).map(t => t.id);
+
+  // Reorder tabs in DOM to match layout order
+  visibleTabs.forEach((modeId, index) => {
+    const tab = document.querySelector(`.mode-tabs [data-mode="${modeId}"]`);
+    if (tab) {
+      tab.style.order = index;
+    }
+  });
+}
+
+function renderEditModePanel() {
+  const layout = layoutModel.getLayout();
+
+  // Render visible tiles list
+  const visibleTiles = layout.filter(t => !t.hidden);
+  editModeTilesEl.innerHTML = "";
+  if (visibleTiles.length === 0) {
+    editModeTilesEl.innerHTML = '<p class="empty-message">No visible tiles</p>';
+  } else {
+    const h3 = document.createElement("h3");
+    h3.textContent = "Visible tiles (drag to reorder)";
+    editModeTilesEl.appendChild(h3);
+
+    visibleTiles.forEach((tile, index) => {
+      const tileEl = createEditTileElement(tile, index, false);
+      editModeTilesEl.appendChild(tileEl);
+    });
+  }
+
+  // Render hidden tiles list
+  const hiddenTiles = layout.filter(t => t.hidden);
+  editModeHiddenEl.innerHTML = "";
+  if (hiddenTiles.length === 0) {
+    editModeHiddenEl.innerHTML = '<p class="empty-message">No hidden tiles</p>';
+  } else {
+    const h3 = document.createElement("h3");
+    h3.textContent = "Hidden tiles (click to show)";
+    editModeHiddenEl.appendChild(h3);
+
+    hiddenTiles.forEach((tile) => {
+      const tileEl = createEditTileElement(tile, null, true);
+      editModeHiddenEl.appendChild(tileEl);
+    });
+  }
+
+  // Add drag-and-drop handlers
+  addDragHandlers();
+}
+
+function createEditTileElement(tile, visibleIndex, isHidden) {
+  const div = document.createElement("div");
+  div.className = `edit-tile${isHidden ? " hidden-tile" : ""}`;
+  div.dataset.tileId = tile.id;
+  if (!isHidden) div.dataset.visibleIndex = visibleIndex;
+
+  // Drag handle
+  const dragHandle = document.createElement("button");
+  dragHandle.type = "button";
+  dragHandle.className = "edit-tile-drag-handle";
+  dragHandle.setAttribute("aria-label", `Drag ${tile.title} to reorder`);
+  dragHandle.innerHTML = "⋮⋮";
+  dragHandle.tabIndex = 0;
+
+  // Title
+  const titleSpan = document.createElement("span");
+  titleSpan.className = "edit-tile-title";
+  titleSpan.textContent = tile.title;
+
+  // Controls
+  const controls = document.createElement("div");
+  controls.className = "edit-tile-controls";
+
+  // Width toggle
+  const widthBtn = document.createElement("button");
+  widthBtn.type = "button";
+  widthBtn.className = `edit-tile-width-btn${tile.width === "full" ? " full-width" : ""}`;
+  widthBtn.textContent = tile.width === "full" ? "FULL" : "HALF";
+  widthBtn.setAttribute("aria-label", `${tile.title}: switch to ${tile.width === "full" ? "half" : "full"} width`);
+  widthBtn.addEventListener("click", () => {
+    layoutModel.toggleWidth(tile.id);
+    applyLayoutToBoards();
+  });
+
+  // Visibility toggle
+  const visibilityBtn = document.createElement("button");
+  visibilityBtn.type = "button";
+  visibilityBtn.className = `edit-tile-visibility-btn${isHidden ? " hidden" : ""}`;
+  visibilityBtn.textContent = isHidden ? "SHOW" : "HIDE";
+  visibilityBtn.setAttribute("aria-label", `${tile.title}: ${isHidden ? "show" : "hide"} tile`);
+  visibilityBtn.addEventListener("click", () => {
+    layoutModel.setHidden(tile.id, !isHidden);
+    applyLayoutToBoards();
+  });
+
+  // Move earlier/later buttons (only for visible tiles)
+  if (!isHidden && visibleIndex !== null) {
+    const layout = layoutModel.getLayout();
+    const visibleTiles = layout.filter(t => !t.hidden);
+
+    // Move earlier
+    if (visibleIndex > 0) {
+      const moveUpBtn = document.createElement("button");
+      moveUpBtn.type = "button";
+      moveUpBtn.className = "edit-tile-move-btn";
+      moveUpBtn.textContent = "↑";
+      moveUpBtn.setAttribute("aria-label", `Move ${tile.title} earlier`);
+      moveUpBtn.addEventListener("click", () => {
+        layoutModel.moveTile(tile.id, visibleIndex - 1);
+        applyLayoutToBoards();
+        announcePositionChange(tile.title, visibleIndex - 1);
+      });
+      controls.appendChild(moveUpBtn);
+    }
+
+    // Move later
+    if (visibleIndex < visibleTiles.length - 1) {
+      const moveDownBtn = document.createElement("button");
+      moveDownBtn.type = "button";
+      moveDownBtn.className = "edit-tile-move-btn";
+      moveDownBtn.textContent = "↓";
+      moveDownBtn.setAttribute("aria-label", `Move ${tile.title} later`);
+      moveDownBtn.addEventListener("click", () => {
+        layoutModel.moveTile(tile.id, visibleIndex + 1);
+        applyLayoutToBoards();
+        announcePositionChange(tile.title, visibleIndex + 1);
+      });
+      controls.appendChild(moveDownBtn);
+    }
+  }
+
+  controls.prepend(widthBtn);
+  controls.appendChild(visibilityBtn);
+
+  div.appendChild(dragHandle);
+  div.appendChild(titleSpan);
+  div.appendChild(controls);
+
+  return div;
+}
+
+function addDragHandlers() {
+  const tiles = editModeTilesEl.querySelectorAll(".edit-tile:not(.hidden-tile)");
+  tiles.forEach(tile => {
+    tile.addEventListener("pointerdown", handleDragStart);
+    tile.addEventListener("dragstart", e => e.preventDefault()); // Prevent native drag
+  });
+}
+
+function handleDragStart(e) {
+  if (e.button !== 0 && e.pointerType !== "touch") return; // Only left click or touch
+  const tile = e.currentTarget;
+  const mode = tile.dataset.tileId;
+  const index = parseInt(tile.dataset.visibleIndex, 10);
+
+  // Create ghost element for visual feedback
+  const ghost = tile.cloneNode(true);
+  ghost.classList.add("dragging");
+  ghost.style.position = "fixed";
+  ghost.style.pointerEvents = "none";
+  ghost.style.zIndex = "1000";
+  ghost.style.opacity = "0.8";
+  document.body.appendChild(ghost);
+
+  dragState = {
+    sourceEl: tile,
+    sourceMode: mode,
+    ghostEl: ghost,
+    startX: e.clientX,
+    startY: e.clientY,
+    currentIndex: parseInt(tile.dataset.visibleIndex, 10),
+  };
+
+  tile.classList.add("dragging");
+  document.body.classList.add("dragging");
+
+  // Position ghost at cursor
+  updateGhostPosition(e);
+
+  // Add global pointer events
+  document.addEventListener("pointermove", handleDragMove);
+  document.addEventListener("pointerup", handleDragEnd);
+  document.addEventListener("pointercancel", handleDragEnd);
+}
+
+function updateGhostPosition(e) {
+  if (!dragState || !dragState.ghostEl) return;
+  dragState.ghostEl.style.left = `${e.clientX - 80}px`;
+  dragState.ghostEl.style.top = `${e.clientY - 30}px`;
+}
+
+function handleDragMove(e) {
+  if (!dragState) return;
+  e.preventDefault();
+  updateGhostPosition(e);
+
+  // Find drop target
+  const tiles = editModeTilesEl.querySelectorAll(".edit-tile:not(.hidden-tile):not(.dragging)");
+  const layout = layoutModel.getLayout();
+  const visibleTiles = layout.filter(t => !t.hidden);
+
+  for (const tile of tiles) {
+    const rect = tile.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+
+    if (e.clientY < midY) {
+      // Show drop indicator above this tile
+      tile.classList.add("drag-over-above");
+      tile.classList.remove("drag-over-below");
+    } else {
+      tile.classList.add("drag-over-below");
+      tile.classList.remove("drag-over-above");
+    }
+  }
+}
+
+function handleDragEnd(e) {
+  if (!dragState) return;
+
+  // Find drop target
+  const tiles = editModeTilesEl.querySelectorAll(".edit-tile:not(.hidden-tile):not(.dragging)");
+  let newIndex = dragState.currentIndex;
+
+  for (const tile of tiles) {
+    const rect = tile.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+
+    if (e.clientY < midY) {
+      newIndex = parseInt(tile.dataset.visibleIndex, 10);
+      break;
+    } else {
+      newIndex = parseInt(tile.dataset.visibleIndex, 10) + 1;
+    }
+  }
+
+  // Clean up drop indicators
+  tiles.forEach(t => {
+    t.classList.remove("drag-over-above", "drag-over-below");
+  });
+
+  // Perform the move if index changed
+  if (newIndex !== dragState.currentIndex) {
+    const mode = dragState.sourceMode;
+    layoutModel.moveTile(mode, newIndex);
+    applyLayoutToBoards();
+    announcePositionChange(dragState.sourceMode, newIndex);
+  }
+
+  // Clean up
+  dragState.sourceEl.classList.remove("dragging");
+  dragState.ghostEl.remove();
+  document.body.classList.remove("dragging");
+  dragState = null;
+
+  document.removeEventListener("pointermove", handleDragMove);
+  document.removeEventListener("pointerup", handleDragEnd);
+  document.removeEventListener("pointercancel", handleDragEnd);
+}
+
+function announcePositionChange(tileId, newVisibleIndex) {
+  const layout = layoutModel.getLayout();
+  const tile = layout.find(t => t.id === tileId);
+  if (!tile) return;
+
+  const visibleTiles = layout.filter(t => !t.hidden);
+  const position = newVisibleIndex + 1;
+  const total = visibleTiles.length;
+
+  // Create aria-live announcement
+  const announcement = document.createElement("div");
+  announcement.setAttribute("role", "status");
+  announcement.setAttribute("aria-live", "polite");
+  announcement.className = "visually-hidden";
+  announcement.textContent = `${tile.title} moved to position ${position} of ${total}`;
+  document.body.appendChild(announcement);
+
+  // Remove after announcement
+  setTimeout(() => announcement.remove(), 1000);
+}
+
+// Edit mode toggle
+function toggleEditMode() {
+  editModeActive = !editModeActive;
+  document.body.classList.toggle("edit-mode", editModeActive);
+  editModePanel.hidden = !editModeActive;
+  editLayoutBtn.setAttribute("aria-expanded", editModeActive);
+
+  if (editModeActive) {
+    editLayoutBtn.textContent = "Done editing";
+    renderEditModePanel();
+    // Hide mode tabs on mobile during edit mode
+    const modeTabs = document.querySelector(".mode-tabs");
+    if (modeTabs && window.innerWidth < 600) {
+      modeTabs.hidden = true;
+    }
+  } else {
+    editLayoutBtn.textContent = "Edit layout";
+    // Restore mode tabs on mobile
+    const modeTabs = document.querySelector(".mode-tabs");
+    if (modeTabs && window.innerWidth < 600) {
+      modeTabs.hidden = false;
+    }
+  }
+}
+
+function resetLayout() {
+  layoutModel.reset();
+  applyLayoutToBoards();
+}
+
+// Initialize
 function init() {
   // Check for wall mode
   if (isWallMode()) {
@@ -486,6 +859,7 @@ function init() {
   }
 
   // Normal mode initialization
+  initLayoutModel();
   showMode("bart");
   updateClock();
   setInterval(updateClock, 1000);
@@ -496,10 +870,50 @@ function init() {
   for (const tab of tabs) {
     tab.addEventListener("click", () => showMode(tab.dataset.mode));
   }
+
+  // Edit layout button
+  if (editLayoutBtn) {
+    editLayoutBtn.addEventListener("click", toggleEditMode);
+  }
+
+  // Edit mode panel buttons
+  if (resetLayoutBtn) {
+    resetLayoutBtn.addEventListener("click", resetLayout);
+  }
+  if (doneEditBtn) {
+    doneEditBtn.addEventListener("click", toggleEditMode);
+  }
+
+  // Close edit mode on Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && editModeActive) {
+      toggleEditMode();
+    }
+  });
+
+  // Handle window resize for mobile tab visibility
+  window.addEventListener("resize", () => {
+    const modeTabs = document.querySelector(".mode-tabs");
+    if (modeTabs && editModeActive && window.innerWidth < 600) {
+      modeTabs.hidden = true;
+    } else if (modeTabs && !editModeActive && window.innerWidth < 600) {
+      modeTabs.hidden = false;
+    }
+  });
 }
 
 // Run initialization
 init();
 
 // Export for testing
-window.__bayBoard = { poll, updateBoard, renderDepartures, showMode, initWallMode, advanceWallBoard };
+window.__bayBoard = {
+  poll,
+  updateBoard,
+  renderDepartures,
+  showMode,
+  initWallMode,
+  advanceWallBoard,
+  layoutModel,
+  getLayout: () => layoutModel?.getLayout(),
+  toggleEditMode,
+};

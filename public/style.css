@@ -44,6 +44,43 @@ body {
   gap: 16px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.edit-layout-btn {
+  background: transparent;
+  border: 2px solid var(--flap);
+  color: var(--flap);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+  min-height: 44px;
+}
+
+.edit-layout-btn:hover {
+  background-color: var(--flap);
+  color: var(--accent);
+}
+
+.edit-layout-btn:focus-visible {
+  outline: 3px solid var(--flap);
+  outline-offset: 2px;
+}
+
+.edit-layout-btn[aria-expanded="true"] {
+  background-color: var(--flap);
+  color: var(--accent);
+}
+
 @media (max-width: 599px) {
   .header {
     font-size: 1rem;
@@ -51,6 +88,10 @@ body {
   }
   .clock {
     font-size: 1rem;
+  }
+  .edit-layout-btn {
+    padding: 8px 10px;
+    font-size: 0.7rem;
   }
 }
 
@@ -984,10 +1025,321 @@ body {
   }
 }
 
-/* Reduced motion for wall view */
-@media (prefers-reduced-motion: reduce) and (max-width: 720px) and (max-height: 720px) {
-  .split-flap-tile.flipping .split-flap-half.top,
-  .split-flap-tile.flipping .split-flap-half.bottom {
-    animation: none;
+/* ===== Edit Mode Styles ===== */
+.edit-mode-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 100vw;
+  background-color: var(--flap);
+  border-left: 2px solid var(--flap-edge);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.edit-mode-panel[hidden] {
+  display: none;
+}
+
+.edit-mode-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 2px solid var(--flap-edge);
+  background-color: var(--paper);
+  flex-shrink: 0;
+}
+
+.edit-mode-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.reset-layout-btn {
+  background: transparent;
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.reset-layout-btn:hover {
+  background-color: var(--warn);
+  color: var(--flap);
+}
+
+.edit-mode-tiles,
+.edit-mode-hidden {
+  padding: 16px;
+  flex: 1;
+}
+
+.edit-mode-tiles h3,
+.edit-mode-hidden h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--flap-edge);
+}
+
+.edit-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background-color: var(--paper);
+  border: 1px solid var(--flap-edge);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  cursor: grab;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.edit-tile:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.edit-tile.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.edit-tile.hidden-tile {
+  opacity: 0.6;
+  background-color: var(--flap);
+}
+
+.edit-tile-drag-handle {
+  color: var(--ink-muted);
+  cursor: grab;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-tile-drag-handle:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.edit-tile-title {
+  flex: 1;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-tile-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-tile-width-btn,
+.edit-tile-visibility-btn,
+.edit-tile-move-btn {
+  background: transparent;
+  border: 1px solid var(--flap-edge);
+  color: var(--ink);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  min-height: 36px;
+  min-width: 36px;
+}
+
+.edit-tile-width-btn:hover,
+.edit-tile-visibility-btn:hover,
+.edit-tile-move-btn:hover {
+  background-color: var(--flap-edge);
+}
+
+.edit-tile-width-btn:focus-visible,
+.edit-tile-visibility-btn:focus-visible,
+.edit-tile-move-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.edit-tile-width-btn.full-width {
+  background-color: var(--accent);
+  color: var(--flap);
+  border-color: var(--accent);
+}
+
+.edit-tile-visibility-btn.hidden {
+  background-color: var(--warn);
+  color: var(--flap);
+  border-color: var(--warn);
+}
+
+.done-edit-btn {
+  margin: 16px;
+  padding: 12px 24px;
+  background-color: var(--accent);
+  color: var(--flap);
+  border: none;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  flex-shrink: 0;
+}
+
+.done-edit-btn:hover {
+  background-color: var(--warn);
+}
+
+.done-edit-btn:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Edit mode: board drag styles */
+.edit-mode .board {
+  cursor: grab;
+}
+
+.edit-mode .board.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+}
+
+.edit-mode .board.drag-over {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
+/* Responsive edit mode panel */
+@media (max-width: 599px) {
+  .edit-mode-panel {
+    width: 100vw;
+    max-width: 100vw;
+    border-left: none;
+    border-top: 2px solid var(--flap-edge);
+    bottom: 0;
+    top: auto;
+    height: 70vh;
+    max-height: 70vh;
   }
+
+  .edit-mode-header {
+    padding: 12px 16px;
+  }
+
+  .edit-mode-tiles,
+  .edit-mode-hidden {
+    padding: 12px 16px;
+  }
+
+  .edit-tile {
+    padding: 10px;
+  }
+
+  .edit-tile-controls {
+    gap: 6px;
+  }
+
+  .done-edit-btn {
+    margin: 12px 16px;
+    padding: 14px 24px;
+    font-size: 1rem;
+  }
+}
+
+/* Board width variants for edit mode */
+.board[data-width="half"] {
+  /* Default grid behavior */
+}
+
+.board[data-width="full"] {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 900px) {
+  .transit-boards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .board[data-width="full"] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 600px) and (max-width: 899px) {
+  .transit-boards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .board[data-width="full"] {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 599px) {
+  .board[data-width="full"] {
+    /* On mobile, full width is just normal */
+  }
+}
+
+/* Reduced motion for edit mode */
+@media (prefers-reduced-motion: reduce) {
+  .edit-tile,
+  .board {
+    transition: none !important;
+  }
+}
+
+/* Visually hidden for screen readers */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
