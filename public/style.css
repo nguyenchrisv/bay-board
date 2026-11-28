@@ -991,3 +991,743 @@ body {
     animation: none;
   }
 }
+
+/* ========================================================================
+   Terminal wall view (?wall=terminal)
+   Monospace text grid with three themes: light, dark, retro
+   ======================================================================== */
+
+/* Terminal theme CSS custom properties — set on :root by JS based on ?theme= */
+:root {
+  /* Light theme (default when prefers-color-scheme: light) */
+  --term-bg: #F8F8F2;
+  --term-fg: #282A36;
+  --term-fg-muted: #6272A4;
+  --term-accent: #007ACC;
+  --term-header-bg: #E8E8E8;
+  --term-border: #D0D0D0;
+  --term-row-hover: #F0F0F0;
+  --term-cursor-color: #007ACC;
+  --term-glow: none;
+  --term-scanlines: none;
+}
+
+:root[data-term-theme="dark"] {
+  --term-bg: #1E1E2E;
+  --term-fg: #C0CAF5;
+  --term-fg-muted: #545C7E;
+  --term-accent: #89B4FA;
+  --term-header-bg: #181825;
+  --term-border: #313244;
+  --term-row-hover: #292A3A;
+  --term-cursor-color: #89B4FA;
+  --term-glow: none;
+  --term-scanlines: none;
+}
+
+:root[data-term-theme="retro"] {
+  --term-bg: #0A100A;
+  --term-fg: #00FF41;
+  --term-fg-muted: #008F20;
+  --term-accent: #00FF41;
+  --term-header-bg: #001500;
+  --term-border: #003300;
+  --term-row-hover: #002200;
+  --term-cursor-color: #00FF41;
+  --term-glow: 0 0 10px #00FF41, 0 0 20px #00FF41, 0 0 30px #00FF41;
+  --term-scanlines: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15) 0px,
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+}
+
+/* Terminal wall view layout — activates at 720x720 or when forced */
+@media (max-width: 720px) and (max-height: 720px), (min-width: 720px) and (min-height: 720px) {
+  body[data-wall="terminal"] {
+    height: 720px;
+    width: 720px;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+      "Liberation Mono", monospace;
+    background-color: var(--term-bg);
+    color: var(--term-fg);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body[data-wall="terminal"]::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: var(--term-scanlines);
+    pointer-events: none;
+    z-index: 100;
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body[data-wall="terminal"]::before {
+      background-image: none;
+    }
+  }
+
+  body[data-wall="terminal"] .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    background-color: var(--term-header-bg);
+    border-bottom: 1px solid var(--term-border);
+    color: var(--term-fg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+
+  body[data-wall="terminal"] .header::before {
+    content: "> ";
+    color: var(--term-accent);
+    text-shadow: var(--term-glow);
+  }
+
+  body[data-wall="terminal"] .clock {
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .mode-tabs {
+    display: none !important;
+  }
+
+  body[data-wall="terminal"] .boards {
+    padding: 60px 16px 16px;
+    gap: 8px;
+    max-width: 720px;
+    height: calc(720px - 60px);
+    display: block;
+    overflow: hidden;
+  }
+
+  body[data-wall="terminal"] .transit-boards {
+    display: block;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body[data-wall="terminal"] .board {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+    border: none;
+    background-color: var(--term-bg);
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+  }
+
+  body[data-wall="terminal"] .board:not([hidden]) {
+    display: flex;
+  }
+
+  body[data-wall="terminal"] .board-header {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    background-color: var(--term-header-bg);
+    border-bottom: 1px solid var(--term-border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  body[data-wall="terminal"] .pictogram {
+    width: 20px;
+    height: 20px;
+    stroke: var(--term-fg);
+    stroke-width: 2;
+    fill: none;
+    filter: drop-shadow(var(--term-glow));
+  }
+
+  body[data-wall="terminal"] .stop-name {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--term-fg);
+    text-shadow: var(--term-glow);
+  }
+
+  body[data-wall="terminal"] .updated {
+    font-size: 0.625rem;
+    color: var(--term-fg-muted);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto;
+  }
+
+  body[data-wall="terminal"] .departures {
+    flex: 1;
+    overflow: hidden;
+    font-size: 13px;
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  body[data-wall="terminal"] .departures thead {
+    display: none;
+  }
+
+  body[data-wall="terminal"] .departures tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  body[data-wall="terminal"] .departures tr {
+    display: grid;
+    grid-template-columns: 48px 1fr 60px 80px;
+    gap: 8px;
+    background: none;
+    padding: 2px 0;
+    border-bottom: 1px solid var(--term-border);
+  }
+
+  body[data-wall="terminal"] .departures tr:hover {
+    background: var(--term-row-hover);
+  }
+
+  body[data-wall="terminal"] .departures td {
+    padding: 2px 0;
+    border: none;
+    background: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  body[data-wall="terminal"] .line-chip-cell {
+    flex-shrink: 0;
+    width: 48px;
+  }
+
+  body[data-wall="terminal"] .line-chip {
+    min-width: 48px;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background-color: var(--term-accent);
+    color: var(--term-bg);
+    border-radius: 2px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-shadow: none;
+  }
+
+  body[data-wall="terminal"] .destination-cell {
+    flex: 1;
+    min-width: 0;
+    color: var(--term-fg);
+  }
+
+  body[data-wall="terminal"] .minutes-cell {
+    flex-shrink: 0;
+    width: 60px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--term-fg);
+  }
+
+  body[data-wall="terminal"] .minutes-cell.boarding {
+    color: var(--term-accent);
+    font-weight: 700;
+  }
+
+  body[data-wall="terminal"] .platform-cell {
+    flex-shrink: 0;
+    width: 80px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--term-fg-muted);
+  }
+
+  /* Terminal typing animation replaces split-flap */
+  body[data-wall="terminal"] .split-flap-container {
+    display: inline-flex;
+    gap: 0;
+    font-family: inherit;
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+    font-variant-numeric: tabular-nums;
+    width: auto;
+    container-type: normal;
+  }
+
+  body[data-wall="terminal"] .split-flap-tile {
+    display: inline-block;
+    width: auto;
+    height: auto;
+    min-width: 0.6ch;
+    perspective: none;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+    font-size: inherit;
+    color: inherit;
+    text-shadow: var(--term-glow);
+  }
+
+  body[data-wall="terminal"] .split-flap-half,
+  body[data-wall="terminal"] .split-flap-hinge,
+  body[data-wall="terminal"] .char-inner {
+    display: inline;
+    position: static;
+    width: auto;
+    height: auto;
+    transform: none;
+    animation: none;
+    background: transparent;
+    color: inherit;
+    line-height: inherit;
+    white-space: nowrap;
+  }
+
+  body[data-wall="terminal"] .split-flap-half.top,
+  body[data-wall="terminal"] .split-flap-half.bottom {
+    border: none;
+    display: inline;
+    align-items: baseline;
+    justify-content: flex-start;
+  }
+
+  /* Typing animation for terminal mode */
+  @keyframes term-type {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+
+  @keyframes term-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  body[data-wall="terminal"] .term-typing {
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    animation: term-type 0.3s steps(40, end) forwards;
+  }
+
+  body[data-wall="terminal"] .term-cursor {
+    display: inline-block;
+    width: 0.6ch;
+    background-color: var(--term-cursor-color);
+    color: var(--term-bg);
+    animation: term-blink 1s step-end infinite;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body[data-wall="terminal"] .term-typing {
+      animation: none;
+      width: 100%;
+    }
+    body[data-wall="terminal"] .term-cursor {
+      animation: none;
+      opacity: 1;
+    }
+  }
+
+  body[data-wall="terminal"] .empty-row td,
+  body[data-wall="terminal"] .loading-row td {
+    padding: 20px;
+    font-size: 1rem;
+    color: var(--term-fg-muted);
+    text-align: center;
+    grid-column: 1 / -1;
+  }
+
+  body[data-wall="terminal"] .error-row td {
+    padding: 20px;
+    font-size: 1rem;
+    color: var(--term-accent);
+    font-weight: 700;
+    text-align: center;
+    grid-column: 1 / -1;
+    text-shadow: var(--term-glow);
+  }
+
+  /* Fitness card in terminal mode */
+  body[data-wall="terminal"] .fitness-content {
+    padding: 16px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  body[data-wall="terminal"] .fitness-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background-color: var(--term-header-bg);
+    border-bottom: 1px solid var(--term-border);
+    border-radius: 4px 4px 0 0;
+    padding: 4px;
+  }
+
+  body[data-wall="terminal"] .fitness-tabs [role="tab"] {
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--term-fg-muted);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: color 0.15s, background-color 0.15s;
+  }
+
+  body[data-wall="terminal"] .fitness-tabs [role="tab"][aria-selected="true"] {
+    color: var(--term-bg);
+    background-color: var(--term-accent);
+  }
+
+  body[data-wall="terminal"] .fitness-section-title {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--term-fg-muted);
+    margin: 16px 0 8px;
+    text-shadow: var(--term-glow);
+  }
+
+  body[data-wall="terminal"] .fitness-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  body[data-wall="terminal"] .fitness-stat-card {
+    background-color: var(--term-header-bg);
+    border: 1px solid var(--term-border);
+    border-radius: 4px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+
+  body[data-wall="terminal"] .fitness-stat-label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--term-fg-muted);
+    margin-bottom: 4px;
+  }
+
+  body[data-wall="terminal"] .fitness-stat-value {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--term-fg);
+  }
+
+  body[data-wall="terminal"] .fitness-stat-unit {
+    font-size: 0.625rem;
+    font-weight: 400;
+    color: var(--term-fg-muted);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  body[data-wall="terminal"] .fitness-progress-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  body[data-wall="terminal"] .fitness-progress-bar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  body[data-wall="terminal"] .fitness-progress-label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .fitness-progress-bar {
+    height: 8px;
+    background-color: var(--term-header-bg);
+    border: 1px solid var(--term-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  body[data-wall="terminal"] .fitness-progress-fill {
+    height: 100%;
+    background-color: var(--term-accent);
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body[data-wall="terminal"] .fitness-progress-percent {
+    font-size: 0.625rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--term-accent);
+    text-align: right;
+  }
+
+  body[data-wall="terminal"] .group-rides-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  body[data-wall="terminal"] .group-event-card {
+    background-color: var(--term-header-bg);
+    border: 1px solid var(--term-border);
+    border-radius: 4px;
+    padding: 12px;
+  }
+
+  body[data-wall="terminal"] .group-event-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--term-fg);
+    margin-bottom: 4px;
+  }
+
+  body[data-wall="terminal"] .group-event-description {
+    font-size: 0.7rem;
+    color: var(--term-fg-muted);
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  body[data-wall="terminal"] .group-event-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.625rem;
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .group-event-activity {
+    display: inline-block;
+    padding: 2px 6px;
+    background-color: var(--term-bg);
+    border: 1px solid var(--term-border);
+    border-radius: 2px;
+    font-weight: 700;
+    font-size: 0.5625rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    width: fit-content;
+  }
+
+  body[data-wall="terminal"] .group-event-date {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+
+  body[data-wall="terminal"] .group-event-location {
+    font-size: 0.5625rem;
+    color: var(--term-fg-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Desktop terminal mode (for testing at larger sizes) */
+@media (min-width: 721px) {
+  body[data-wall="terminal"] {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+      "Liberation Mono", monospace;
+    background-color: var(--term-bg);
+    color: var(--term-fg);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body[data-wall="terminal"] .header {
+    background-color: var(--term-header-bg);
+    border-bottom: 1px solid var(--term-border);
+    color: var(--term-fg);
+  }
+
+  body[data-wall="terminal"] .clock {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .board {
+    background-color: var(--term-bg);
+    border: 1px solid var(--term-border);
+    border-radius: 4px;
+  }
+
+  body[data-wall="terminal"] .board-header {
+    background-color: var(--term-header-bg);
+    border-bottom: 1px solid var(--term-border);
+  }
+
+  body[data-wall="terminal"] .pictogram {
+    stroke: var(--term-fg);
+  }
+
+  body[data-wall="terminal"] .stop-name {
+    color: var(--term-fg);
+  }
+
+  body[data-wall="terminal"] .updated {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .departures th {
+    background-color: var(--term-header-bg);
+    color: var(--term-fg-muted);
+    border-bottom: 1px solid var(--term-border);
+  }
+
+  body[data-wall="terminal"] .departures td {
+    border-bottom: 1px solid var(--term-border);
+  }
+
+  body[data-wall="terminal"] .departures tbody tr:hover {
+    background: var(--term-row-hover);
+  }
+
+  body[data-wall="terminal"] .line-chip {
+    background-color: var(--term-accent);
+    color: var(--term-bg);
+  }
+
+  body[data-wall="terminal"] .minutes-cell.boarding {
+    color: var(--term-accent);
+  }
+
+  body[data-wall="terminal"] .platform-cell {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .fitness-tabs {
+    background-color: var(--term-header-bg);
+    border-bottom: 1px solid var(--term-border);
+  }
+
+  body[data-wall="terminal"] .fitness-tabs [role="tab"] {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .fitness-tabs [role="tab"][aria-selected="true"] {
+    color: var(--term-bg);
+    background-color: var(--term-accent);
+  }
+
+  body[data-wall="terminal"] .fitness-section-title {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .fitness-stat-card {
+    background-color: var(--term-header-bg);
+    border: 1px solid var(--term-border);
+  }
+
+  body[data-wall="terminal"] .fitness-stat-label {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .fitness-stat-value {
+    color: var(--term-fg);
+  }
+
+  body[data-wall="terminal"] .fitness-stat-unit {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .fitness-progress-bar {
+    background-color: var(--term-header-bg);
+    border: 1px solid var(--term-border);
+  }
+
+  body[data-wall="terminal"] .fitness-progress-fill {
+    background-color: var(--term-accent);
+  }
+
+  body[data-wall="terminal"] .fitness-progress-percent {
+    color: var(--term-accent);
+  }
+
+  body[data-wall="terminal"] .group-event-card {
+    background-color: var(--term-header-bg);
+    border: 1px solid var(--term-border);
+  }
+
+  body[data-wall="terminal"] .group-event-title {
+    color: var(--term-fg);
+  }
+
+  body[data-wall="terminal"] .group-event-description {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .group-event-meta {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .group-event-activity {
+    background-color: var(--term-bg);
+    border: 1px solid var(--term-border);
+  }
+
+  body[data-wall="terminal"] .empty-row td,
+  body[data-wall="terminal"] .loading-row td {
+    color: var(--term-fg-muted);
+  }
+
+  body[data-wall="terminal"] .error-row td {
+    color: var(--term-accent);
+  }
+}
+
+/* Reduced motion for terminal mode */
+@media (prefers-reduced-motion: reduce) {
+  body[data-wall="terminal"] .fitness-progress-fill {
+    transition: none;
+  }
+}

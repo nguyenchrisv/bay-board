@@ -14,6 +14,9 @@ import {
 
 import {
   isWallMode,
+  isTerminalWallMode,
+  getWallModeType,
+  getTerminalTheme,
   getWallModes,
   getNextModeIndex,
   formatWallDestination,
@@ -74,10 +77,20 @@ const configuredModes = new Set(Object.keys(boards).filter((mode) => {
 
 // Wall view state
 let wallModeActive = false;
+let wallModeType = null; // "square" or "terminal"
+let terminalTheme = "light";
 let wallModes = [];
 let currentWallModeIndex = 0;
 let wallRotationTimer = null;
 let wallRotationInterval = 15_000;
+
+// Track previous departures for terminal typing animation
+const previousTerminalDepartures = {
+  bart: [],
+  ferry: [],
+  bus: [],
+  fitness: [],
+};
 
 function updateClock() {
   const now = new Date();
@@ -124,7 +137,7 @@ function measureDestCap(boardEl) {
   return width >= DEST_CAP_THRESHOLD_PX ? 12 : 10;
 }
 
-function renderDepartures(boardEl, data, mode, capOverride, isWall = false) {
+function renderDepartures(boardEl, data, mode, capOverride, isWall = false, isTerminal = false) {
   const tbody = boardEl.querySelector(".departures tbody");
   if (!tbody) return;
 
@@ -138,15 +151,16 @@ function renderDepartures(boardEl, data, mode, capOverride, isWall = false) {
     tr.appendChild(td);
     tbody.appendChild(tr);
     previousDepartures[mode] = [];
+    if (isTerminal) previousTerminalDepartures[mode] = [];
     return;
   }
 
   const cap = capOverride ?? destCaps[mode] ?? 12;
   const newDepartures = data.departures;
-  const oldDepartures = previousDepartures[mode] || [];
+  const oldDepartures = isTerminal ? previousTerminalDepartures[mode] : (previousDepartures[mode] || []);
 
   tbody.innerHTML = "";
-  const maxRows = isWall ? 5 : newDepartures.length;
+  const maxRows = (isWall || isTerminal) ? 5 : newDepartures.length;
   for (let i = 0; i < Math.min(newDepartures.length, maxRows); i++) {
     const dep = newDepartures[i];
     const oldDep = oldDepartures[i] || {};
@@ -165,9 +179,10 @@ function renderDepartures(boardEl, data, mode, capOverride, isWall = false) {
     // Destination - capped to the current tile cap (12, or 10 on narrow
     // cells) so long names never overflow into the MIN column (issue #6).
     // For wall view, use larger cap (16 tiles) and wall destination formatting.
+    // For terminal mode, no split-flap tiles — text renders directly with typing animation.
     const isBart = mode === "bart";
     let oldDest, newDest;
-    if (isWall) {
+    if (isWall || isTerminal) {
       oldDest = formatWallDestination(
         isBart ? oldDep.destination : abbreviateDestination(oldDep.destination),
         16
@@ -187,24 +202,81 @@ function renderDepartures(boardEl, data, mode, capOverride, isWall = false) {
       );
     }
     const destChanges = diffStrings(oldDest, newDest);
-    const destTileCount = isWall ? 16 : cap;
-    tr.appendChild(createSplitFlapCell(newDest, destChanges, "destination-cell", destTileCount));
+    const destTileCount = (isWall || isTerminal) ? 16 : cap;
 
-    // Minutes - use split-flap if changed
+    if (isTerminal) {
+      // Terminal mode: render text with typing animation
+      const destTd = document.createElement("td");
+      destTd.className = "destination-cell";
+      const typingSpan = document.createElement("span");
+      typingSpan.className = "term-typing";
+      typingSpan.textContent = newDest;
+      destTd.appendChild(typingSpan);
+      // Add cursor after typing completes
+      setTimeout(() => {
+        const cursor = document.createElement("span");
+        cursor.className = "term-cursor";
+        cursor.setAttribute("aria-hidden", "true");
+        destTd.appendChild(cursor);
+      }, 300);
+      tr.appendChild(destTd);
+    } else {
+      // Normal/square wall mode: use split-flap
+      tr.appendChild(createSplitFlapCell(newDest, destChanges, "destination-cell", destTileCount));
+    }
+
+    // Minutes - use split-flap if changed (or plain text for terminal)
     const oldMin = formatMinutes(oldDep.minutes);
     const newMin = formatMinutes(dep.minutes);
     const minChanges = diffStrings(oldMin, newMin);
-    const minCell = createSplitFlapCell(newMin, minChanges, "minutes-cell");
-    if (newMin === "NOW") {
-      minCell.classList.add("boarding");
-    }
-    tr.appendChild(minCell);
 
-    // Platform - use split-flap if changed
+    if (isTerminal) {
+      const minTd = document.createElement("td");
+      minTd.className = "minutes-cell";
+      const typingSpan = document.createElement("span");
+      typingSpan.className = "term-typing";
+      typingSpan.textContent = newMin;
+      minTd.appendChild(typingSpan);
+      if (newMin === "NOW") {
+        minTd.classList.add("boarding");
+      }
+      setTimeout(() => {
+        const cursor = document.createElement("span");
+        cursor.className = "term-cursor";
+        cursor.setAttribute("aria-hidden", "true");
+        minTd.appendChild(cursor);
+      }, 300);
+      tr.appendChild(minTd);
+    } else {
+      const minCell = createSplitFlapCell(newMin, minChanges, "minutes-cell");
+      if (newMin === "NOW") {
+        minCell.classList.add("boarding");
+      }
+      tr.appendChild(minCell);
+    }
+
+    // Platform - use split-flap if changed (or plain text for terminal)
     const oldPlat = oldDep.platform || oldDep.remarks || "";
     const newPlat = dep.platform || dep.remarks || "";
     const platChanges = diffStrings(oldPlat, newPlat);
-    tr.appendChild(createSplitFlapCell(newPlat, platChanges, "platform-cell"));
+
+    if (isTerminal) {
+      const platTd = document.createElement("td");
+      platTd.className = "platform-cell";
+      const typingSpan = document.createElement("span");
+      typingSpan.className = "term-typing";
+      typingSpan.textContent = newPlat;
+      platTd.appendChild(typingSpan);
+      setTimeout(() => {
+        const cursor = document.createElement("span");
+        cursor.className = "term-cursor";
+        cursor.setAttribute("aria-hidden", "true");
+        platTd.appendChild(cursor);
+      }, 300);
+      tr.appendChild(platTd);
+    } else {
+      tr.appendChild(createSplitFlapCell(newPlat, platChanges, "platform-cell"));
+    }
 
     tbody.appendChild(tr);
   }
@@ -212,7 +284,7 @@ function renderDepartures(boardEl, data, mode, capOverride, isWall = false) {
   // After rendering, sync the cap with the real cell width: if the
   // measured cap differs from the one used, re-render once with it. The
   // override guard keeps this to a single extra pass.
-  if (capOverride === undefined && !isWall) {
+  if (capOverride === undefined && !isWall && !isTerminal) {
     const measured = measureDestCap(boardEl);
     if (measured && measured !== cap) {
       destCaps[mode] = measured;
@@ -223,14 +295,22 @@ function renderDepartures(boardEl, data, mode, capOverride, isWall = false) {
   destCaps[mode] = cap;
 
   // Update previous departures for next diff
-  previousDepartures[mode] = newDepartures.map((d) => ({
-    destination: d.destination || "",
-    minutes: d.minutes,
-    platform: d.platform || d.remarks || "",
-  }));
+  if (isTerminal) {
+    previousTerminalDepartures[mode] = newDepartures.map((d) => ({
+      destination: d.destination || "",
+      minutes: d.minutes,
+      platform: d.platform || d.remarks || "",
+    }));
+  } else {
+    previousDepartures[mode] = newDepartures.map((d) => ({
+      destination: d.destination || "",
+      minutes: d.minutes,
+      platform: d.platform || d.remarks || "",
+    }));
+  }
 }
 
-function updateBoard(boardEl, data, mode, isWall = false) {
+function updateBoard(boardEl, data, mode, isWall = false, isTerminal = false) {
   if (!data) return;
 
   const updatedEl = boardEl.querySelector(".updated");
@@ -256,7 +336,7 @@ function updateBoard(boardEl, data, mode, isWall = false) {
       tr.className = "empty-row";
       const td = document.createElement("td");
       td.setAttribute("colspan", "4");
-      td.textContent = isWall ? comingSoon : comingSoon;
+      td.textContent = (isWall || isTerminal) ? comingSoon : comingSoon;
       tr.appendChild(td);
       tbody.appendChild(tr);
     }
@@ -277,7 +357,7 @@ function updateBoard(boardEl, data, mode, isWall = false) {
     staleBadge.hidden = false;
   }
 
-  renderDepartures(boardEl, data, mode, undefined, isWall);
+  renderDepartures(boardEl, data, mode, undefined, isWall, isTerminal);
 }
 
 async function poll() {
@@ -290,7 +370,7 @@ async function poll() {
         const currentMode = wallModes[currentWallModeIndex];
         const boardEl = boards[currentMode];
         if (boardEl) {
-          handleBoardFailure(boardEl, currentMode, data.message, true);
+          handleBoardFailure(boardEl, currentMode, data.message, true, wallModeType === "terminal");
         }
       } else {
         // Normal mode: on HTTP failure, fetchBoard() returns a top-level
@@ -298,7 +378,7 @@ async function poll() {
         // configured boards with the same message.
         for (const [mode, boardEl] of Object.entries(boards)) {
           if (boardEl && configuredModes.has(mode)) {
-            handleBoardFailure(boardEl, mode, data.message, false);
+            handleBoardFailure(boardEl, mode, data.message, false, false);
           }
         }
       }
@@ -310,27 +390,27 @@ async function poll() {
       const currentMode = wallModes[currentWallModeIndex];
       const boardEl = boards[currentMode];
       if (boardEl && data[currentMode]) {
-        handleBoardSuccess(boardEl, currentMode, data[currentMode], true);
+        handleBoardSuccess(boardEl, currentMode, data[currentMode], true, wallModeType === "terminal");
       }
     } else {
       // Normal mode: update all boards
       for (const [mode, boardEl] of Object.entries(boards)) {
         if (boardEl && data[mode]) {
-          handleBoardSuccess(boardEl, mode, data[mode], false);
+          handleBoardSuccess(boardEl, mode, data[mode], false, false);
         }
       }
     }
   }
 }
 
-function handleBoardSuccess(boardEl, mode, data, isWall = false) {
+function handleBoardSuccess(boardEl, mode, data, isWall = false, isTerminal = false) {
   // Reset failure count on success
   consecutiveFailures[mode] = 0;
   hasGoodData[mode] = true;
-  updateBoard(boardEl, data, mode, isWall);
+  updateBoard(boardEl, data, mode, isWall, isTerminal);
 }
 
-function handleBoardFailure(boardEl, mode, message, isWall = false) {
+function handleBoardFailure(boardEl, mode, message, isWall = false, isTerminal = false) {
   // Increment failure count
   consecutiveFailures[mode]++;
 
@@ -340,8 +420,8 @@ function handleBoardFailure(boardEl, mode, message, isWall = false) {
   const shouldShow = shouldShowError(hasGoodData[mode], consecutiveFailures[mode]);
 
   if (shouldShow) {
-    if (isWall) {
-      showWallBoardError(boardEl, message);
+    if (isWall || isTerminal) {
+      showWallBoardError(boardEl, message, isTerminal);
     } else {
       showBoardError(boardEl, message);
     }
@@ -363,9 +443,17 @@ function handleBoardFailure(boardEl, mode, message, isWall = false) {
 // Wall view functions
 function initWallMode(config) {
   wallModeActive = true;
+  wallModeType = getWallModeType(); // "square" or "terminal"
+  terminalTheme = wallModeType === "terminal" ? getTerminalTheme() : null;
   wallModes = getWallModes(config);
   currentWallModeIndex = 0;
   wallRotationInterval = getRotationInterval(config);
+
+  // Apply terminal theme to document root
+  if (wallModeType === "terminal" && terminalTheme) {
+    document.documentElement.setAttribute("data-term-theme", terminalTheme);
+    document.body.setAttribute("data-wall", "terminal");
+  }
 
   // Hide mode tabs
   const modeTabs = document.querySelector(".mode-tabs");
@@ -403,7 +491,7 @@ function showBoardError(boardEl, message) {
   tbody.appendChild(tr);
 }
 
-function showWallBoardError(boardEl, message) {
+function showWallBoardError(boardEl, message, isTerminal = false) {
   showBoardError(boardEl, message);
   // Also update header to show error
   const stopNameEl = boardEl.querySelector(".stop-name");
@@ -472,7 +560,7 @@ function handleWallKeydown(event) {
 
 // Initialize wall mode if active
 function init() {
-  // Check for wall mode
+  // Check for wall mode (square or terminal)
   if (isWallMode()) {
     // Fetch config to determine which modes are available
     fetch("/api/config").then(res => res.json()).then(config => {

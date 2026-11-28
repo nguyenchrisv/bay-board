@@ -1,11 +1,35 @@
 // Wall view utilities: pure functions for square 720x720 display mode
+// Supports both ?wall=square and ?wall=terminal modes
 
 const WALL_MODES = ["bart", "ferry", "bus", "fitness"];
 const ROTATION_INTERVAL_MS = 15_000; // 15 seconds default
 
 function isWallMode() {
   const params = new URLSearchParams(window.location.search);
-  return params.get("wall") === "square";
+  const wall = params.get("wall");
+  return wall === "square" || wall === "terminal";
+}
+
+function getWallModeType() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("wall"); // "square", "terminal", or null
+}
+
+function isTerminalWallMode() {
+  return getWallModeType() === "terminal";
+}
+
+function getTerminalTheme() {
+  const params = new URLSearchParams(window.location.search);
+  const theme = params.get("theme");
+  if (theme === "light" || theme === "dark" || theme === "retro") {
+    return theme;
+  }
+  // Default: follow prefers-color-scheme
+  if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    return "dark";
+  }
+  return "light";
 }
 
 function getWallModes(config) {
@@ -43,6 +67,9 @@ function getRotationInterval(config) {
 
 export {
   isWallMode,
+  isTerminalWallMode,
+  getWallModeType,
+  getTerminalTheme,
   getWallModes,
   getNextModeIndex,
   formatWallDestination,
