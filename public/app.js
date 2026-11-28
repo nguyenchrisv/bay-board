@@ -492,6 +492,9 @@ function initLayoutModel() {
   if (editLayoutBtn && layout.length > 1) {
     editLayoutBtn.hidden = false;
   }
+
+  // Attach drag handlers at initialization (not only in edit mode)
+  addInPlaceDragHandlers();
 }
 
 function applyLayoutToBoards() {
