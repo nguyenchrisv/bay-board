@@ -587,6 +587,16 @@ body {
   outline-offset: -3px;
 }
 
+.fitness-range {
+  border-radius: 0;
+  margin-bottom: 12px;
+}
+
+.fitness-range [role="tab"] {
+  padding: 8px 6px;
+  font-size: 0.75rem;
+}
+
 .fitness-section-title {
   font-size: 0.75rem;
   font-weight: 700;

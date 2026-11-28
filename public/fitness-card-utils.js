@@ -176,6 +176,62 @@ function createGroupEventCard(event) {
   return card;
 }
 
+// ---- Time ranges (7D / 30D / 60D / 90D / YTD) ----
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RANGES = ["7", "30", "60", "90", "ytd"];
+
+function rangeStart(range, nowMs = Date.now()) {
+  if (range === "ytd") {
+    const now = new Date(nowMs);
+    return new Date(now.getFullYear(), 0, 1).getTime();
+  }
+  const days = Number(range) || 7;
+  return nowMs - days * DAY_MS;
+}
+
+function rangeDays(range, nowMs = Date.now()) {
+  return Math.max(1, (nowMs - rangeStart(range, nowMs)) / DAY_MS);
+}
+
+function rangeTitle(range) {
+  return range === "ytd" ? "YEAR TO DATE" : `LAST ${Number(range) || 7} DAYS`;
+}
+
+function matchesType(activity, activityType) {
+  return activity.sport_type === activityType || activity.type === activityType;
+}
+
+// Totals for one activity type since sinceMs. Average speed is total distance / total moving time.
+function computeRangeTotals(activities, activityType, sinceMs) {
+  let distanceMeters = 0;
+  let movingTime = 0;
+  let count = 0;
+  for (const activity of activities || []) {
+    if (!matchesType(activity, activityType)) continue;
+    if (new Date(activity.start_date).getTime() < sinceMs) continue;
+    distanceMeters += activity.distance || 0;
+    movingTime += activity.moving_time || 0;
+    count++;
+  }
+  return { distanceMeters, movingTime, count, avgSpeed: movingTime > 0 ? distanceMeters / movingTime : 0 };
+}
+
+// Weekly goal scaled to the length of the range.
+function scaleGoal(weeklyGoal, range, nowMs = Date.now()) {
+  const factor = rangeDays(range, nowMs) / 7;
+  return { distance: weeklyGoal.distance * factor, time: weeklyGoal.time * factor };
+}
+
+// Activity types present in the data, most frequent first (max `limit`).
+function activityTypesByCount(activities, limit = 4) {
+  const counts = new Map();
+  for (const a of activities || []) {
+    const t = a.sport_type || a.type;
+    if (t) counts.set(t, (counts.get(t) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([t]) => t);
+}
+
 export {
   getActivityLabels,
   formatDistance,
@@ -188,4 +244,11 @@ export {
   createStatCard,
   createProgressBar,
   createGroupEventCard,
+  RANGES,
+  rangeStart,
+  rangeDays,
+  rangeTitle,
+  computeRangeTotals,
+  scaleGoal,
+  activityTypesByCount,
 };

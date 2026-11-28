@@ -5,6 +5,7 @@ import { serveStatic } from "./static.js";
 import { getConfig as defaultGetConfig, resetConfigCache } from "./config.js";
 import { getPoller as defaultGetPoller, resetPoller as defaultResetPoller, createPoller } from "./poller.js";
 import { PoseyClient, authorizeControl, isPoseyEnabled } from "./services/posey.js";
+import { createStravaService, stravaSettings } from "./services/strava.js";
 import pkg from "../package.json" with { type: "json" };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -19,6 +20,8 @@ let testPoller = null;
 let testStravaData = null;
 let testBoardData = null;
 let testPosey = null;
+let testStravaService = null;
+let stravaService = null;
 
 function setTestConfig(getConfig) {
   testGetConfig = getConfig;
@@ -36,6 +39,19 @@ function setTestBoardData(data) {
   testBoardData = data;
 }
 
+function setTestStravaService(service) {
+  testStravaService = service;
+}
+
+async function getStravaService() {
+  if (testStravaService) return testStravaService;
+  if (stravaService) return stravaService;
+  const settings = stravaSettings(await getConfig());
+  if (!settings) return null;
+  stravaService = createStravaService(settings);
+  return stravaService;
+}
+
 function setTestPosey(posey) {
   testPosey = posey;
 }
@@ -46,6 +62,7 @@ function clearTestOverrides() {
   testStravaData = null;
   testBoardData = null;
   testPosey = null;
+  testStravaService = null;
 }
 
 function getConfig() {
@@ -252,17 +269,29 @@ export async function handleRequest(req, res) {
         return;
       }
 
-      // In production, this would call the Strava backend service
-      // For now, return empty structure
-      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({
-        athlete: null,
-        stats: null,
-        activities: [],
-        clubs: [],
-        groupEvents: {},
-        updatedAt: new Date().toISOString(),
-      }));
+      const service = await getStravaService();
+      if (!service) {
+        // Not configured: empty structure so the card shows its empty state
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({
+          configured: false,
+          athlete: null,
+          stats: null,
+          activities: [],
+          clubs: [],
+          groupEvents: {},
+          updatedAt: new Date().toISOString(),
+        }));
+        return;
+      }
+      try {
+        const data = await service.getData();
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify(data));
+      } catch {
+        res.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ error: "Strava unavailable" }));
+      }
       return;
     } catch (err) {
       if (!res.writableEnded) {
@@ -422,4 +451,4 @@ if (isMainModule()) {
 }
 
 // Export for testing
-export { getPoller, resetPoller, createPoller, setTestConfig, setTestPoller, setTestStravaData, setTestBoardData, setTestPosey, clearTestOverrides, getPosey, resetConfigCache };
+export { getPoller, resetPoller, createPoller, setTestConfig, setTestPoller, setTestStravaData, setTestStravaService, setTestBoardData, setTestPosey, clearTestOverrides, getPosey, resetConfigCache };
